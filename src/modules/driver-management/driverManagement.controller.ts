@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { DriverManagementRepository } from './driverManagement.repository';
+import { notifyUserBackend } from '../../services/socket';
 
 export const DriverManagementController = {
   async getDrivers(req: Request, res: Response, next: NextFunction) {
@@ -57,10 +58,10 @@ export const DriverManagementController = {
   async updateDriver(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const { status, ...profileData } = req.body;
+      const { status, status_reason, ...profileData } = req.body;
       
       if (status) {
-        await DriverManagementRepository.updateStatus(id, status);
+        await DriverManagementRepository.updateStatus(id, status, status_reason);
       }
       
       let updatedDriver = null;
@@ -68,6 +69,18 @@ export const DriverManagementController = {
         updatedDriver = await DriverManagementRepository.updateProfile(id, profileData);
       } else if (status) {
         updatedDriver = await DriverManagementRepository.findById(id);
+      }
+
+      if (status && updatedDriver) {
+        notifyUserBackend('ACCOUNT_STATUS_UPDATE', {
+          driverId: updatedDriver.id,
+          vdriveId: updatedDriver.vdrive_id,
+          status,
+          reason: status_reason || null
+        });
+        
+        // Placeholder for FCM Push Notification:
+        // await FcmService.sendPushNotification(updatedDriver.id, `Account ${status}`, status_reason);
       }
       
       return res.status(200).json({

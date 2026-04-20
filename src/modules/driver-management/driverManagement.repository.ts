@@ -88,10 +88,10 @@ export class DriverManagementRepository {
     };
   }
 
-  static async updateStatus(id: string, status: string) {
+  static async updateStatus(id: string, status: string, reason?: string) {
     await query(
-      'UPDATE drivers SET status = $1, updated_at = NOW() WHERE id = $2',
-      [status, id]
+      'UPDATE drivers SET status = $1, status_reason = $2, status_updated_at = NOW(), updated_at = NOW() WHERE id = $3',
+      [status, reason || null, id]
     );
   }
 
@@ -161,6 +161,9 @@ export class DriverManagementRepository {
     // Total counts (Lifetime)
     const totalUsersResult = await query(
       "SELECT COUNT(*) FROM users"
+    );
+    const activeUsersResult = await query(
+      "SELECT COUNT(*) FROM users WHERE status = 'active'"
     );
     const totalSubscriptionsResult = await query(
       "SELECT COUNT(*) FROM driver_subscriptions WHERE status = 'active'"
@@ -246,6 +249,7 @@ export class DriverManagementRepository {
       todayNewDrivers: stats.todayNewDrivers,
       todaySubscriptions: stats.todaySubscriptions,
       totalUsers: parseInt(totalUsersResult.rows[0]?.count || '0'),
+      activeUsers: parseInt(activeUsersResult.rows[0]?.count || '0'),
       totalSubscriptions: parseInt(totalSubscriptionsResult.rows[0]?.count || '0'),
       totalEarnings: parseFloat(totalEarningsResult.rows[0]?.total || '0'),
       todayTrips: stats.todayTrips,

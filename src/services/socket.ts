@@ -73,6 +73,14 @@ export const initSocket = (httpServer: HttpServer): Server => {
       }
     });
 
+    // ✅ User backend notifies admin of a general trip status update
+    socket.on('TRIP_STATUS_UPDATE', (data) => {
+      logger.info('Trip status updated, forwarding to admin UI:', data);
+      if (io) {
+        io.to('admin').emit('ADMIN_TRIP_STATUS_UPDATE', data);
+      }
+    });
+
     // ✅ User backend notifies admin of a driver location update
     socket.on('DRIVER_LOCATION_UPDATE', (data) => {
       if (io) {
