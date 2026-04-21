@@ -21,4 +21,6 @@ router.post('/:id/assign', TripManagementController.assignDriver);
 
 router.post('/:id/trigger', TripManagementController.triggerTrip);
 
+router.post('/cancel/:id', TripManagementController.cancelTrip);
+
 export default router;

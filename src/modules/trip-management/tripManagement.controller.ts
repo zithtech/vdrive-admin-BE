@@ -26,4 +26,8 @@ export const TripManagementController = {
   async triggerTrip(req: Request, res: Response, next: NextFunction) {
     return forwardRequest(req, res, next, config.userDriverApiUrl);
   },
+
+  async cancelTrip(req: Request, res: Response, next: NextFunction) {
+    return forwardRequest(req, res, next, config.userDriverApiUrl);
+  },
 };
