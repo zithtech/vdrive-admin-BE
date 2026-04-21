@@ -1,5 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { DriverManagementRepository } from './driverManagement.repository';
+import { forwardRequest } from '../../shared/forwardRequest';
+import config from '../../config';
+
 
 export const DriverManagementController = {
   async getDrivers(req: Request, res: Response, next: NextFunction) {
@@ -156,5 +159,9 @@ export const DriverManagementController = {
     } catch (error) {
       next(error);
     }
+  },
+
+  async getAvailableDriversForAssignment(req: Request, res: Response, next: NextFunction) {
+    return forwardRequest(req, res, next, config.userDriverApiUrl);
   },
 };

@@ -17,4 +17,8 @@ router.post('/create', TripManagementController.createTrip);
 
 router.patch('/update/:id', TripManagementController.updateTrip);
 
+router.post('/:id/assign', TripManagementController.assignDriver);
+
+router.post('/:id/trigger', TripManagementController.triggerTrip);
+
 export default router;
