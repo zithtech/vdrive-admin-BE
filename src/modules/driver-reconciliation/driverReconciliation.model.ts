@@ -21,15 +21,20 @@ export interface DriverReconciliationRow {
   dob?: Date;
   area?: string;
   street?: string;
+  address?: string;
   district?: string;
   state?: string;
   country?: string;
+  status: string;
+  onboarding_status?: string;
   has_account: boolean;
   is_onboarded: boolean;
   match_confidence: number; // 0-3: 1=phone, 2=mail, 3=both
   error_message?: string;
   whatsapp_sent: boolean;
   created_at: Date;
+  updated_at: Date;
+  joined_date?: Date;
 }
 
 export interface DriverReconciliationPayload {
@@ -42,9 +47,12 @@ export interface DriverReconciliationPayload {
     dob?: string; // ISO date string
     area?: string;
     street?: string;
+    address?: string;
     district?: string;
     state?: string;
     country?: string;
+    status?: string;
+    joined_date?: string;
   }>;
 }
 
@@ -53,6 +61,7 @@ export interface ProcessingResult {
   message: string;
   upload_id?: number;
   processed_rows?: number;
+  data?: DriverReconciliationRow[];
   errors?: Array<{
     row_index: number;
     error_message: string;
@@ -62,6 +71,7 @@ export interface ProcessingResult {
 export interface MatchResult {
   has_account: boolean;
   is_onboarded: boolean;
+  onboarding_status?: string;
   match_confidence: number; // 0-3
   existing_user_id?: string;
   existing_driver_id?: string;
