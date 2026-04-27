@@ -8,6 +8,21 @@ import {
 } from './driverReconciliation.model';
 
 export class DriverReconciliationService {
+  // Sync all reconciliation records
+  static async syncReconciliationData(): Promise<{ success: boolean; message: string; rows_synced: number }> {
+    try {
+      const rowsSynced = await DriverReconciliationRepository.syncAllRows();
+      return {
+        success: true,
+        message: `Successfully synced ${rowsSynced} driver records`,
+        rows_synced: rowsSynced
+      };
+    } catch (error: any) {
+      console.error('❌ Error syncing reconciliation data:', error);
+      throw new Error(`Failed to sync reconciliation data: ${error.message}`);
+    }
+  }
+
   // Process driver reconciliation payload
   static async processReconciliationData(
     adminId: string | undefined,
@@ -32,7 +47,8 @@ export class DriverReconciliationService {
 
       // Process each row
       for (let i = 0; i < payload.data.length; i++) {
-        const row = payload.data[i];
+        const rawRow = payload.data[i];
+        const row = this.normalizeRow(rawRow);
 
         try {
           // Validate row data
@@ -61,6 +77,19 @@ export class DriverReconciliationService {
             }
           }
 
+          // Parse joined date if provided
+          let joinedDate: Date | undefined;
+          if (row.joined_date) {
+            try {
+              joinedDate = new Date(row.joined_date);
+              if (isNaN(joinedDate.getTime())) {
+                joinedDate = undefined;
+              }
+            } catch {
+              joinedDate = undefined;
+            }
+          }
+
           // Prepare row for insertion
           const reconciliationRow: Partial<DriverReconciliationRow> = {
             upload_id: uploadId,
@@ -71,14 +100,18 @@ export class DriverReconciliationService {
             dob: dob,
             area: row.area,
             street: row.street,
+            address: row.address,
             district: row.district,
             state: row.state,
             country: row.country,
+            status: row.status,
             has_account: matchResult.has_account,
             is_onboarded: matchResult.is_onboarded,
+            onboarding_status: matchResult.onboarding_status,
             match_confidence: matchResult.match_confidence,
             error_message: undefined,
             whatsapp_sent: false,
+            joined_date: joinedDate,
           };
 
           rowsToInsert.push(reconciliationRow);
@@ -91,9 +124,19 @@ export class DriverReconciliationService {
         }
       }
 
+      // Deduplicate rows by phone number before batch insertion
+      // This prevents the "ON CONFLICT DO UPDATE command cannot affect row a second time" error
+      const uniqueRowsMap = new Map<string, Partial<DriverReconciliationRow>>();
+      rowsToInsert.forEach((row) => {
+        if (row.phone) {
+          uniqueRowsMap.set(row.phone, row);
+        }
+      });
+      const uniqueRowsToInsert = Array.from(uniqueRowsMap.values());
+
       // Insert all valid rows in batch
-      if (rowsToInsert.length > 0) {
-        await DriverReconciliationRepository.insertReconciliationRows(rowsToInsert);
+      if (uniqueRowsToInsert.length > 0) {
+        await DriverReconciliationRepository.insertReconciliationRows(uniqueRowsToInsert);
       }
 
       // Update upload status
@@ -106,11 +149,15 @@ export class DriverReconciliationService {
 
       console.log(`✅ Processed ${payload.data.length - errors.length} rows successfully`);
 
+      // Fetch the created rows for the response
+      const savedRows = await DriverReconciliationRepository.getRowsByUploadId(uploadId);
+
       return {
         success: true,
         message: `Successfully processed ${payload.data.length - errors.length} out of ${payload.data.length} rows`,
         upload_id: uploadId,
         processed_rows: payload.data.length - errors.length,
+        data: savedRows,
         errors: errors.length > 0 ? errors : undefined,
       };
     } catch (error: any) {
@@ -148,9 +195,10 @@ export class DriverReconciliationService {
   }
 
   // Basic phone validation
-  private static isValidPhone(phone: string): boolean {
-    // Remove all non-digit characters
-    const cleanPhone = phone.replace(/\D/g, '');
+  private static isValidPhone(phone: string | number): boolean {
+    if (!phone) return false;
+    // Convert to string and remove all non-digit characters
+    const cleanPhone = String(phone).replace(/\D/g, '');
     // Check if it's between 10-15 digits
     return cleanPhone.length >= 10 && cleanPhone.length <= 15;
   }
@@ -162,9 +210,79 @@ export class DriverReconciliationService {
   }
 
   // Basic pincode validation
-  private static isValidPincode(pincode: string): boolean {
+  private static isValidPincode(pincode: string | number): boolean {
+    if (!pincode) return false;
     // Indian pincode format: 6 digits
-    return /^\d{6}$/.test(pincode);
+    return /^\d{6}$/.test(String(pincode));
+  }
+
+  // Normalize row keys to formal internal names
+  private static normalizeRow(rawRow: any): any {
+    const normalized: any = {};
+    const keyMap: { [key: string]: string } = {
+      // Driver Name mappings
+      'driver name': 'driver_name',
+      name: 'driver_name',
+      'full name': 'driver_name',
+      driver_name: 'driver_name',
+
+      // Phone mappings
+      'phone number': 'phone',
+      phone: 'phone',
+      contact: 'phone',
+      mobile: 'phone',
+      phone_number: 'phone',
+
+      // Email mappings
+      email: 'mail',
+      mail: 'mail',
+      'email id': 'mail',
+      email_id: 'mail',
+
+      // Address mappings
+      address: 'address',
+      addr: 'address',
+      location: 'address',
+
+      // Pincode mappings
+      pincode: 'pincode',
+      pin: 'pincode',
+      zip: 'pincode',
+      zipcode: 'pincode',
+
+      // Other fields
+      district: 'district',
+      state: 'state',
+      country: 'country',
+      status: 'status',
+      area: 'area',
+      street: 'street',
+
+      // Date mappings
+      'joined date': 'joined_date',
+      joined: 'joined_date',
+      onboarding_date: 'joined_date',
+      joined_date: 'joined_date',
+
+      'date of birth': 'dob',
+      dob: 'dob',
+      birth_date: 'dob',
+    };
+
+    // Process each key in the raw row
+    Object.keys(rawRow).forEach((key) => {
+      const lowerKey = key.toLowerCase().trim();
+      const normalizedKey = keyMap[lowerKey];
+
+      if (normalizedKey) {
+        // If multiple keys map to the same normalized key, prioritize the formal one or the first one found
+        if (!normalized[normalizedKey]) {
+          normalized[normalizedKey] = rawRow[key];
+        }
+      }
+    });
+
+    return normalized;
   }
 
   // Get upload details

@@ -11,6 +11,9 @@ router.use(isAuthenticated);
 // POST /api/driver-reconciliation/process - Process reconciliation data
 router.post('/process', DriverReconciliationController.processReconciliationData);
 
+// POST /api/driver-reconciliation/sync - Sync data with live database
+router.post('/sync', DriverReconciliationController.syncReconciliationData);
+
 // GET /api/driver-reconciliation/uploads - Get all uploads with pagination
 router.get('/uploads', DriverReconciliationController.getUploads);
 

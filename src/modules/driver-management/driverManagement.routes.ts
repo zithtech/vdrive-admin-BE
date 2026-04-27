@@ -20,5 +20,6 @@ router.get('/performance/:id', DriverManagementController.getPerformance);
 router.get('/earnings/:id/summary', DriverManagementController.getEarningsSummary);
 router.get('/wallet/:id/balance', DriverManagementController.getWalletBalance);
 router.post('/search', DriverManagementController.searchNearbyDrivers);
+router.post('/available-for-assignment', DriverManagementController.getAvailableDriversForAssignment);
 
 export default router;

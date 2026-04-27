@@ -8,6 +8,20 @@ interface AuthRequest extends Request {
 }
 
 export class DriverReconciliationController {
+  // Sync all reconciliation data with live database
+  static async syncReconciliationData(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await DriverReconciliationService.syncReconciliationData();
+      return res.status(200).json(result);
+    } catch (error: any) {
+      console.error('Error in syncReconciliationData:', error);
+      return res.status(500).json({
+        success: false,
+        message: error.message || 'Internal server error',
+      });
+    }
+  }
+
   // Process reconciliation data payload
   static async processReconciliationData(req: AuthRequest, res: Response, next: NextFunction) {
     try {

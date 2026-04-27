@@ -18,4 +18,16 @@ export const TripManagementController = {
   async updateTrip(req: Request, res: Response, next: NextFunction) {
     return forwardRequest(req, res, next, config.userDriverApiUrl);
   },
+
+  async assignDriver(req: Request, res: Response, next: NextFunction) {
+    return forwardRequest(req, res, next, config.userDriverApiUrl);
+  },
+
+  async triggerTrip(req: Request, res: Response, next: NextFunction) {
+    return forwardRequest(req, res, next, config.userDriverApiUrl);
+  },
+
+  async cancelTrip(req: Request, res: Response, next: NextFunction) {
+    return forwardRequest(req, res, next, config.userDriverApiUrl);
+  },
 };

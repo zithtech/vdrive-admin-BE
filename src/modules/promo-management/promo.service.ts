@@ -2,8 +2,8 @@ import { PromoRepository } from './promo.repository';
 import { Promo } from './promo.model';
 
 export const PromoService = {
-  async getPromos(page: number, limit: number) {
-    return await PromoRepository.getPromos(page, limit);
+  async getPromos(page: number, limit: number, promoType?: string) {
+    return await PromoRepository.getPromos(page, limit, promoType);
   },
 
   async getPromoById(id: number) {

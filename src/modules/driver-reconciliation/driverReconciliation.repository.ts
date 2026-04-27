@@ -48,31 +48,56 @@ export class DriverReconciliationRepository {
       .map(
         (row) => `(
       ${row.upload_id},
-      ${row.driver_name ? `'${row.driver_name.replace(/'/g, "''")}'` : 'NULL'},
+      ${row.driver_name ? `'${String(row.driver_name).replace(/'/g, "''")}'` : 'NULL'},
       ${row.phone ? `'${row.phone}'` : 'NULL'},
       ${row.mail ? `'${row.mail}'` : 'NULL'},
       ${row.pincode ? `'${row.pincode}'` : 'NULL'},
       ${row.dob ? `'${row.dob.toISOString()}'` : 'NULL'},
       ${row.area ? `'${row.area.replace(/'/g, "''")}'` : 'NULL'},
       ${row.street ? `'${row.street.replace(/'/g, "''")}'` : 'NULL'},
-      ${row.district ? `'${row.district.replace(/'/g, "''")}'` : 'NULL'},
-      ${row.state ? `'${row.state.replace(/'/g, "''")}'` : 'NULL'},
-      ${row.country ? `'${row.country.replace(/'/g, "''")}'` : 'NULL'},
+      ${row.address ? `'${String(row.address).replace(/'/g, "''")}'` : 'NULL'},
+      ${row.district ? `'${String(row.district).replace(/'/g, "''")}'` : 'NULL'},
+      ${row.state ? `'${String(row.state).replace(/'/g, "''")}'` : 'NULL'},
+      ${row.country ? `'${String(row.country).replace(/'/g, "''")}'` : 'NULL'},
+      ${row.status ? `'${row.status}'` : 'NULL'},
       ${row.has_account || false},
       ${row.is_onboarded || false},
       ${row.match_confidence || 0},
       ${row.error_message ? `'${row.error_message.replace(/'/g, "''")}'` : 'NULL'},
-      ${row.whatsapp_sent || false}
+      ${row.whatsapp_sent || false},
+      ${row.joined_date ? `'${row.joined_date.toISOString()}'` : 'NULL'},
+      ${row.onboarding_status ? `'${row.onboarding_status}'` : 'NULL'}
     )`
       )
       .join(', ');
 
     await query(`
       INSERT INTO driver_reconciliation_rows (
-        upload_id, driver_name, phone, mail, pincode, dob, area, street,
-        district, state, country, has_account, is_onboarded, match_confidence,
-        error_message, whatsapp_sent
+        upload_id, driver_name, phone, mail, pincode, dob, area, street, address,
+        district, state, country, status, has_account, is_onboarded, match_confidence,
+        error_message, whatsapp_sent, joined_date, onboarding_status
       ) VALUES ${values}
+      ON CONFLICT (phone) DO UPDATE SET
+        upload_id = EXCLUDED.upload_id,
+        driver_name = COALESCE(EXCLUDED.driver_name, driver_reconciliation_rows.driver_name),
+        mail = COALESCE(EXCLUDED.mail, driver_reconciliation_rows.mail),
+        pincode = COALESCE(EXCLUDED.pincode, driver_reconciliation_rows.pincode),
+        dob = COALESCE(EXCLUDED.dob, driver_reconciliation_rows.dob),
+        area = COALESCE(EXCLUDED.area, driver_reconciliation_rows.area),
+        street = COALESCE(EXCLUDED.street, driver_reconciliation_rows.street),
+        address = COALESCE(EXCLUDED.address, driver_reconciliation_rows.address),
+        district = COALESCE(EXCLUDED.district, driver_reconciliation_rows.district),
+        state = COALESCE(EXCLUDED.state, driver_reconciliation_rows.state),
+        country = COALESCE(EXCLUDED.country, driver_reconciliation_rows.country),
+        status = COALESCE(EXCLUDED.status, driver_reconciliation_rows.status, 'pending'),
+        has_account = EXCLUDED.has_account,
+        is_onboarded = EXCLUDED.is_onboarded,
+        match_confidence = EXCLUDED.match_confidence,
+        error_message = EXCLUDED.error_message,
+        whatsapp_sent = EXCLUDED.whatsapp_sent,
+        joined_date = COALESCE(EXCLUDED.joined_date, driver_reconciliation_rows.joined_date),
+        onboarding_status = COALESCE(EXCLUDED.onboarding_status, driver_reconciliation_rows.onboarding_status, 'NOT_REGISTERED'),
+        updated_at = NOW()
     `);
   }
 
@@ -86,6 +111,8 @@ export class DriverReconciliationRepository {
       // Check for both phone and email match
       queryText = `
         SELECT d.id as driver_id,
+               d.onboarding_status,
+               d.status,
                CASE WHEN dp.driver_id IS NOT NULL THEN true ELSE false END as is_onboarded
         FROM drivers d
         LEFT JOIN driver_profiles dp ON d.id = dp.driver_id
@@ -99,6 +126,8 @@ export class DriverReconciliationRepository {
       // Check for phone match only
       queryText = `
         SELECT d.id as driver_id,
+               d.onboarding_status,
+               d.status,
                CASE WHEN dp.driver_id IS NOT NULL THEN true ELSE false END as is_onboarded
         FROM drivers d
         LEFT JOIN driver_profiles dp ON d.id = dp.driver_id
@@ -111,6 +140,8 @@ export class DriverReconciliationRepository {
       // Check for email match only
       queryText = `
         SELECT d.id as driver_id,
+               d.onboarding_status,
+               d.status,
                CASE WHEN dp.driver_id IS NOT NULL THEN true ELSE false END as is_onboarded
         FROM drivers d
         LEFT JOIN driver_profiles dp ON d.id = dp.driver_id
@@ -119,7 +150,8 @@ export class DriverReconciliationRepository {
       `;
       params = [email];
       matchConfidence = 2; // Email match only
-    } else {
+    }
+ else {
       return { has_account: false, is_onboarded: false, match_confidence: 0 };
     }
 
@@ -130,6 +162,7 @@ export class DriverReconciliationRepository {
       return {
         has_account: true,
         is_onboarded: row.is_onboarded,
+        onboarding_status: row.onboarding_status,
         match_confidence: matchConfidence,
         existing_user_id: row.driver_id, // Use driver_id as user_id for backward compatibility
         existing_driver_id: row.driver_id,
@@ -249,5 +282,41 @@ export class DriverReconciliationRepository {
       [limit, offset]
     );
     return result.rows;
+  }
+
+  // Sync all reconciliation records against live driver database
+  static async syncAllRows(): Promise<number> {
+    // 1. Reset all match statuses for a fresh check (optional but cleaner)
+    // 2. Perform bulk update by joining with drivers table
+    const result = await query(`
+      UPDATE driver_reconciliation_rows drr
+      SET 
+        driver_name = TRIM(CONCAT(d.first_name, ' ', d.last_name)),
+        mail = d.email,
+        address = d.address->>'street',
+        district = d.address->>'city',
+        state = d.address->>'state',
+        country = d.address->>'country',
+        pincode = d.address->>'pincode',
+        joined_date = d.created_at,
+        has_account = true,
+        is_onboarded = CASE WHEN dp.driver_id IS NOT NULL THEN true ELSE false END,
+        onboarding_status = d.onboarding_status,
+        status = d.status,
+        match_confidence = CASE 
+          WHEN drr.phone = d.phone_number AND drr.mail = d.email THEN 3 
+          WHEN drr.phone = d.phone_number THEN 1 
+          WHEN drr.mail = d.email THEN 2 
+          ELSE 0 
+        END,
+        updated_at = d.updated_at
+      FROM drivers d
+      LEFT JOIN driver_profiles dp ON d.id = dp.driver_id
+      WHERE (drr.phone = d.phone_number OR drr.mail = d.email)
+      AND d.is_deleted = false
+      RETURNING drr.id
+    `);
+    
+    return result.rowCount || 0;
   }
 }

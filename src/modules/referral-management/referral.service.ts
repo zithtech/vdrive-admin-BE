@@ -24,5 +24,13 @@ export const ReferralService = {
 
   async deleteConfig(id: string) {
     return await ReferralRepository.delete(id);
+  },
+
+  async getActiveConfig(userType: string) {
+    return await ReferralRepository.getByUserType(userType);
+  },
+
+  async listReferralLogs(userType: string) {
+    return await ReferralRepository.getReferralLogs(userType as 'CUSTOMER' | 'DRIVER');
   }
 };
