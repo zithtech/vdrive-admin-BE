@@ -26,9 +26,11 @@ interface Config {
   };
   prodURL: string;
   userDriverApiUrl: string;
+  userBackendWebhookUrl: string;
   awsServiceUrl: string;
   internalServiceApiKey: string;
   internalServiceSecret: string;
+  internalSecret: string;
   email: {
     service: string;
     user: string;
@@ -60,9 +62,11 @@ const config: Config = {
   },
   prodURL: process.env.PROD_URL || 'http://localhost:3000',
   userDriverApiUrl: process.env.USER_DRIVER_API_URL || 'http://localhost:1234',
+  userBackendWebhookUrl: process.env.USER_BACKEND_WEBHOOK_URL || 'http://localhost:5000/webhook/coupon',
   awsServiceUrl: process.env.AWS_SERVICE_URL || 'http://localhost:1235',
   internalServiceApiKey: process.env.INTERNAL_SERVICE_API_KEY || '',
   internalServiceSecret: process.env.INTERNAL_SERVICE_SECRET || '',
+  internalSecret: process.env.INTERNAL_SECRET || '',
   email: {
     service: process.env.EMAIL_SERVICE || 'gmail',
     user: process.env.EMAIL_USER || '',
