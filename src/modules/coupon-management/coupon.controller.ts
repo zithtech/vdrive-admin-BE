@@ -100,5 +100,15 @@ export const CouponController = {
     } catch (error: any) {
       res.status(400).json({ message: error.message });
     }
+  },
+
+  async notifyUsers(req: Request, res: Response) {
+    try {
+      const { target, userId } = req.body;
+      const result = await CouponService.notifyUsers(req.params.id, target, userId);
+      res.status(200).json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
   }
 };

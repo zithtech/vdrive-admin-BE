@@ -87,5 +87,20 @@ export const PromoRepository = {
 
   async delete(id: number) {
     await query(`DELETE FROM promos WHERE id = $1`, [id]);
+  },
+
+  async triggerNotification(promoId: number, target: string, driverId?: string) {
+    const res = await query(
+      `UPDATE promos 
+       SET notify_status = 'PENDING', 
+           notify_target = $1, 
+           notify_specific_driver_id = $2,
+           notify_count = 0,
+           notify_sent_at = NULL
+       WHERE id = $3 
+       RETURNING *`,
+      [target, driverId || null, promoId]
+    );
+    return res.rows[0];
   }
 };
