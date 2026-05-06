@@ -101,5 +101,9 @@ export const CouponService = {
 
   async recordCouponUsage(usageData: CouponUsage) {
     return CouponRepository.recordUsage(usageData);
+  },
+
+  async notifyUsers(couponId: string, target: string, userId?: string) {
+    return CouponRepository.triggerNotification(couponId, target, userId);
   }
 };

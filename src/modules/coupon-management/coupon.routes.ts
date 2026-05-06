@@ -56,3 +56,9 @@ adminCouponRoutes.delete(
   validateParams(CouponValidation.idValidation),
   CouponController.deleteCoupon
 );
+
+adminCouponRoutes.post(
+  '/notify/:id',
+  validateParams(CouponValidation.idValidation),
+  CouponController.notifyUsers
+);

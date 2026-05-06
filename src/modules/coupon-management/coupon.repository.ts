@@ -135,5 +135,20 @@ export const CouponRepository = {
       [couponId, topicName]
     );
     return res.rows[0];
+  },
+
+  async triggerNotification(couponId: string, target: string, userId?: string) {
+    const res = await query(
+      `UPDATE coupons 
+       SET notify_status = 'PENDING', 
+           notify_target = $1, 
+           notify_specific_user_id = $2,
+           notify_count = 0,
+           notify_sent_at = NULL
+       WHERE id = $3 
+       RETURNING *`,
+      [target, userId || null, couponId]
+    );
+    return res.rows[0];
   }
 };

@@ -1,15 +1,14 @@
 import { Request, Response } from 'express';
 import { CouponService } from './coupon.service';
 import axios from 'axios';
+import config from '../../config';
 
-// Helper to notify user app backend via webhook
 const notifyUserBackend = async (event: string, payload: any) => {
   try {
-    const webhookUrl = process.env.USER_BACKEND_WEBHOOK_URL || 'http://localhost:5000/webhook/coupon';
-    await axios.post(webhookUrl, {
+    await axios.post(config.userBackendWebhookUrl, {
       event,
       payload,
-      secret: process.env.INTERNAL_SECRET
+      secret: config.internalSecret,
     });
   } catch (error) {
     console.error('Webhook notification failed:', error);
@@ -100,6 +99,16 @@ export const CouponController = {
       res.status(201).json(result);
     } catch (error: any) {
       res.status(400).json({ message: error.message });
+    }
+  },
+
+  async notifyUsers(req: Request, res: Response) {
+    try {
+      const { target, userId } = req.body;
+      const result = await CouponService.notifyUsers(req.params.id, target, userId);
+      res.status(200).json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
     }
   }
 };
