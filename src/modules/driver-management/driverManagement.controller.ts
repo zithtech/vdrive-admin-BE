@@ -61,7 +61,7 @@ export const DriverManagementController = {
   async updateDriver(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const { status, status_reason, ...profileData } = req.body;
+      const { status, status_reason, ...profileData } = req.body || {};
       
       if (status) {
         await DriverManagementRepository.updateStatus(id, status, status_reason);
@@ -99,13 +99,104 @@ export const DriverManagementController = {
   async adminVerifyDriver(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const { kyc_status } = req.body;
+      const { kyc_status } = req.body || {};
       
+      const status = kyc_status === 'verified' ? 'active' : undefined;
       await DriverManagementRepository.verifyDriver(id, kyc_status || 'verified');
+      
+      const updatedDriver = await DriverManagementRepository.findById(id);
+      
+      if (updatedDriver) {
+        notifyUserBackend('ACCOUNT_STATUS_UPDATE', {
+          driverId: updatedDriver.id,
+          vdriveId: updatedDriver.vdrive_id,
+          status: updatedDriver.status,
+          kyc_status: updatedDriver.kyc_status,
+          reason: kyc_status === 'verified' ? 'KYC Verified' : 'KYC Rejected'
+        });
+      }
       
       return res.status(200).json({
         success: true,
-        message: 'Driver verified successfully'
+        message: `Driver ${kyc_status || 'verified'} successfully`,
+        data: updatedDriver
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async verifyDocument(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { document_id } = req.params;
+      const { status, reason } = req.body || {};
+      
+      const updatedDoc = await DriverManagementRepository.updateDocumentStatus(document_id, status, reason);
+      
+      if (!updatedDoc) {
+        return res.status(404).json({ success: false, message: 'Document not found' });
+      }
+
+      // Notify driver about document status update
+      notifyUserBackend('DOCUMENT_STATUS_UPDATE', {
+        driverId: updatedDoc.driver_id,
+        documentId: updatedDoc.id,
+        status: updatedDoc.status,
+        reason: updatedDoc.rejection_reason || null
+      });
+
+      const updatedDriver = await DriverManagementRepository.findById(updatedDoc.driver_id);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Document status updated successfully',
+        data: updatedDriver
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async bulkVerifyDocuments(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const updatedDocs = await DriverManagementRepository.bulkVerifyDocuments(id);
+      
+      if (updatedDocs && updatedDocs.length > 0) {
+        // Notify driver for each updated document or a bulk notification
+        // For simplicity, we send individual notifications as the frontend expects it per document usually,
+        // or one overall notification if supported.
+        updatedDocs.forEach(doc => {
+          notifyUserBackend('DOCUMENT_STATUS_UPDATE', {
+            driverId: id,
+            documentId: doc.id,
+            status: 'verified',
+            reason: 'Bulk Verified'
+          });
+        });
+      }
+
+      // Return the updated driver details so frontend can sync
+      const driver = await DriverManagementRepository.findById(id);
+
+      return res.status(200).json({
+        success: true,
+        message: 'All documents verified successfully',
+        data: driver
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async getDocumentHistory(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { document_id } = req.params;
+      const history = await DriverManagementRepository.getDocumentHistory(document_id);
+      
+      return res.status(200).json({
+        success: true,
+        data: history
       });
     } catch (error) {
       next(error);
@@ -139,7 +230,7 @@ export const DriverManagementController = {
 
   async searchNearbyDrivers(req: Request, res: Response, next: NextFunction) {
     try {
-      const { query } = req.body;
+      const { query } = req.body || {};
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 50;
       const offset = (page - 1) * limit;

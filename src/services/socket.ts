@@ -81,6 +81,30 @@ export const initSocket = (httpServer: HttpServer): Server => {
       }
     });
 
+    // ✅ User backend notifies admin of trip verification request
+    socket.on('TRIP_VERIFICATION_REQUESTED', (data) => {
+      logger.info('Trip verification requested, forwarding to admin UI:', data);
+      if (io) {
+        io.to('admin').emit('ADMIN_TRIP_VERIFICATION_REQUESTED', data);
+      }
+    });
+
+    // ✅ User backend notifies admin of trip verification approved
+    socket.on('TRIP_VERIFICATION_APPROVED', (data) => {
+      logger.info('Trip verification approved, forwarding to admin UI:', data);
+      if (io) {
+        io.to('admin').emit('ADMIN_TRIP_VERIFICATION_APPROVED', data);
+      }
+    });
+
+    // ✅ User backend notifies admin of trip verification rejected
+    socket.on('TRIP_VERIFICATION_REJECTED', (data) => {
+      logger.info('Trip verification rejected, forwarding to admin UI:', data);
+      if (io) {
+        io.to('admin').emit('ADMIN_TRIP_VERIFICATION_REJECTED', data);
+      }
+    });
+
     // ✅ User backend notifies admin of a driver location update
     socket.on('DRIVER_LOCATION_UPDATE', (data) => {
       if (io) {

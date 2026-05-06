@@ -1,5 +1,40 @@
 
 import { query } from '../../shared/database';
+import config from '../../config';
+import { logger } from '../../shared/logger';
+
+const transformUrl = (url: string) => {
+  if (url && typeof url === 'string' && url.includes('s3.eu-north-1.amazonaws.com')) {
+    // Point to the User-Driver-API proxy
+    return `${config.userDriverApiUrl}/api/media/proxy?url=${encodeURIComponent(url)}`;
+  }
+  return url;
+};
+
+const transformDriverUrls = (driver: any) => {
+  if (driver.profile_pic_url) {
+    driver.profile_pic_url = transformUrl(driver.profile_pic_url);
+  }
+  if (driver.profilePicUrl) {
+    driver.profilePicUrl = transformUrl(driver.profilePicUrl);
+  }
+
+  if (driver.documents && Array.isArray(driver.documents)) {
+    driver.documents = driver.documents.map((doc: any) => {
+      if (doc.document_url) {
+        if (typeof doc.document_url === 'object' && doc.document_url !== null) {
+          if (doc.document_url.front) doc.document_url.front = transformUrl(doc.document_url.front);
+          if (doc.document_url.back) doc.document_url.back = transformUrl(doc.document_url.back);
+        } else if (typeof doc.document_url === 'string') {
+          doc.document_url = transformUrl(doc.document_url);
+        }
+      }
+      return doc;
+    });
+  }
+  return driver;
+};
+
 
 export class DriverManagementRepository {
   static async findAll(limit: number = 50, offset: number = 0) {
@@ -16,7 +51,18 @@ export class DriverManagementRepository {
          JOIN recharge_plans rp ON ds.plan_id = rp.id
          WHERE ds.driver_id = d.id AND ds.status = 'active'
          LIMIT 1
-       ) as active_subscription
+       ) as active_subscription,
+       (SELECT json_agg(json_build_object(
+           'document_id', dd.id,
+           'document_type', dd.document_type,
+           'document_number', dd.document_number,
+           'document_url', dd.document_url,
+           'license_status', dd.status,
+           'expiry_date', dd.expiry_date
+         ))
+         FROM driver_documents dd
+         WHERE dd.driver_id = d.id
+       ) as documents
        FROM drivers d
        WHERE d.is_deleted = false 
        ORDER BY d.created_at DESC LIMIT $1 OFFSET $2`,
@@ -26,12 +72,26 @@ export class DriverManagementRepository {
     const countResult = await query('SELECT COUNT(*) FROM drivers WHERE is_deleted = false');
     
     return {
-      drivers: result.rows.map((row: any) => ({
-        ...row,
-        payments: {
-          total_earnings: parseFloat(row.total_earnings || 0),
-        },
-      })),
+      drivers: result.rows.map((row: any) => {
+        let documents = row.documents || [];
+        documents = documents.map((doc: any) => {
+          let urlObj = doc.document_url;
+          try {
+             if (typeof urlObj === 'string' && urlObj.startsWith('{')) {
+               urlObj = JSON.parse(urlObj);
+             }
+          } catch(e) {}
+          return { ...doc, document_url: urlObj };
+        });
+
+        return transformDriverUrls({
+          ...row,
+          documents,
+          payments: {
+            total_earnings: parseFloat(row.total_earnings || 0),
+          },
+        });
+      }),
       total: parseInt(countResult.rows[0].count),
     };
   }
@@ -44,7 +104,129 @@ export class DriverManagementRepository {
       `SELECT * FROM drivers WHERE ${isUuid ? 'id' : 'vdrive_id'} = $1 AND is_deleted = false`,
       [id]
     );
-    return result.rows[0] || null;
+    
+    if (result.rows.length === 0) return null;
+    const driver = result.rows[0];
+
+    // Fetch documents for the driver
+    const documentsResult = await query(
+      `SELECT * FROM driver_documents WHERE driver_id = $1`,
+      [driver.id]
+    );
+
+    driver.documents = documentsResult.rows.map(doc => {
+      let urlObj = doc.document_url;
+      try {
+        if (typeof urlObj === 'string' && urlObj.startsWith('{')) {
+          urlObj = JSON.parse(urlObj);
+        }
+      } catch (e) {}
+
+      return {
+        document_id: doc.id,
+        document_type: doc.document_type,
+        document_number: doc.document_number,
+        document_url: urlObj, // Return the raw object (which might have .front and .back)
+        license_status: doc.status || 'pending',
+        expiry_date: doc.expiry_date,
+      };
+    });
+
+    return transformDriverUrls(driver);
+  }
+
+  static async updateDocumentStatus(documentId: string, status: string, reason?: string) {
+    const result = await query(
+      'UPDATE driver_documents SET status = $1, rejection_reason = $2, verified_at = NOW() WHERE id = $3 RETURNING *',
+      [status, reason || null, documentId]
+    );
+
+    // Record history
+    if (result.rows[0]) {
+      const doc = result.rows[0];
+      await query(
+        'INSERT INTO driver_document_history (document_id, status, reason) VALUES ($1, $2, $3)',
+        [documentId, status, reason || null]
+      );
+      
+      // Sync overall driver KYC status
+      await this.syncDriverKYCStatus(doc.driver_id);
+    }
+
+    return result.rows[0];
+  }
+
+  static async syncDriverKYCStatus(driverId: string) {
+    const documentsResult = await query(
+      'SELECT document_type, status FROM driver_documents WHERE driver_id = $1',
+      [driverId]
+    );
+    const docs = documentsResult.rows;
+
+    const mandatoryTypes = ['aadhaar_card', 'driving_license', 'pan_card', 'profile_selfie'];
+    const mandatoryDocs = docs.filter(d => mandatoryTypes.includes(d.document_type));
+
+    let overallStatus = 'pending';
+    let onboardingStatusUpdate = null;
+
+    const allVerified = mandatoryDocs.length === mandatoryTypes.length && mandatoryDocs.every(d => d.status === 'verified');
+    const anyRejected = mandatoryDocs.some(d => d.status === 'rejected');
+
+    if (allVerified) {
+      overallStatus = 'verified';
+      onboardingStatusUpdate = 'DOCUMENTS_APPROVED';
+    } else if (anyRejected) {
+      overallStatus = 'rejected';
+      onboardingStatusUpdate = 'DOCS_REJECTED';
+    }
+
+    const kycData = {
+      overallStatus,
+      verifiedAt: overallStatus === 'verified' ? new Date().toISOString() : null
+    };
+
+    let sql = 'UPDATE drivers SET kyc = COALESCE(kyc, \'{}\'::jsonb) || $1';
+    const params: any[] = [JSON.stringify(kycData), driverId];
+
+    if (onboardingStatusUpdate) {
+      sql += `, onboarding_status = $3`;
+      params.push(onboardingStatusUpdate);
+    }
+
+    sql += ', updated_at = NOW() WHERE id = $2';
+
+    await query(sql, params);
+    logger.info(`syncDriverKYCStatus for ${driverId}: overallStatus=${overallStatus}, onboardingStatus=${onboardingStatusUpdate}`);
+  }
+
+  static async bulkVerifyDocuments(driverId: string) {
+    const result = await query(
+      "UPDATE driver_documents SET status = 'verified', verified_at = NOW() WHERE driver_id = $1 AND status != 'verified' RETURNING *",
+      [driverId]
+    );
+
+    // Record history for each document
+    if (result.rows && result.rows.length > 0) {
+      for (const doc of result.rows) {
+        await query(
+          "INSERT INTO driver_document_history (document_id, status, reason) VALUES ($1, 'verified', 'Bulk Verified')",
+          [doc.id]
+        );
+      }
+      
+      // Sync overall driver KYC status
+      await this.syncDriverKYCStatus(driverId);
+    }
+
+    return result.rows;
+  }
+
+  static async getDocumentHistory(documentId: string) {
+    const result = await query(
+      'SELECT * FROM driver_document_history WHERE document_id = $1 ORDER BY created_at DESC',
+      [documentId]
+    );
+    return result.rows;
   }
 
   static async search(searchTerm: string, limit: number = 50, offset: number = 0) {
@@ -62,7 +244,18 @@ export class DriverManagementRepository {
          JOIN recharge_plans rp ON ds.plan_id = rp.id
          WHERE ds.driver_id = d.id AND ds.status = 'active'
          LIMIT 1
-       ) as active_subscription
+       ) as active_subscription,
+       (SELECT json_agg(json_build_object(
+           'document_id', dd.id,
+           'document_type', dd.document_type,
+           'document_number', dd.document_number,
+           'document_url', dd.document_url,
+           'license_status', dd.status,
+           'expiry_date', dd.expiry_date
+         ))
+         FROM driver_documents dd
+         WHERE dd.driver_id = d.id
+       ) as documents
        FROM drivers d
        WHERE (d.first_name ILIKE $1 OR d.last_name ILIKE $1 OR d.phone_number ILIKE $1 OR d.email ILIKE $1 OR d.vdrive_id ILIKE $1 OR d.id::text ILIKE $1)
        AND d.is_deleted = false 
@@ -78,28 +271,73 @@ export class DriverManagementRepository {
     );
 
     return {
-      drivers: result.rows.map((row: any) => ({
-        ...row,
-        payments: {
-          total_earnings: parseFloat(row.total_earnings || 0),
-        },
-      })),
+      drivers: result.rows.map((row: any) => {
+        let documents = row.documents || [];
+        documents = documents.map((doc: any) => {
+          let urlObj = doc.document_url;
+          try {
+             if (typeof urlObj === 'string' && urlObj.startsWith('{')) {
+               urlObj = JSON.parse(urlObj);
+             }
+          } catch(e) {}
+          return { ...doc, document_url: urlObj };
+        });
+
+        return transformDriverUrls({
+          ...row,
+          documents,
+          payments: {
+            total_earnings: parseFloat(row.total_earnings || 0),
+          },
+        });
+      }),
       total: parseInt(countResult.rows[0].count),
     };
   }
 
   static async updateStatus(id: string, status: string, reason?: string) {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const isUuid = uuidRegex.test(id);
+    const idColumn = isUuid ? 'id' : 'vdrive_id';
+
+    const onboardingUpdate = status === 'active' ? ", onboarding_status = 'ONBOARDING_COMPLETED', documents_submitted = true" : "";
+    
     await query(
-      'UPDATE drivers SET status = $1, status_reason = $2, status_updated_at = NOW(), updated_at = NOW() WHERE id = $3',
+      `UPDATE drivers SET status = $1, status_reason = $2, status_updated_at = NOW(), updated_at = NOW() ${onboardingUpdate} WHERE ${idColumn} = $3`,
       [status, reason || null, id]
     );
   }
 
   static async verifyDriver(id: string, kycStatus: string) {
-    await query(
-      'UPDATE drivers SET kyc_status = $1, updated_at = NOW() WHERE id = $2',
-      [kycStatus, id]
-    );
+    console.log(`[DEBUG] verifyDriver called for ID: ${id}, kycStatus: ${kycStatus}`);
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const isUuid = uuidRegex.test(id);
+    const idColumn = isUuid ? 'id' : 'vdrive_id';
+
+    if (kycStatus === 'verified') {
+      await query(
+        `UPDATE drivers SET kyc_status = $1, status = 'active', documents_submitted = true, onboarding_status = 'ONBOARDING_COMPLETED', status_updated_at = NOW(), updated_at = NOW() WHERE ${idColumn} = $2`,
+        [kycStatus, id]
+      );
+      
+      // We need the internal UUID for the documents update if we don't have it
+      let internalId = id;
+      if (!isUuid) {
+        const driver = await query('SELECT id FROM drivers WHERE vdrive_id = $1', [id]);
+        if (driver.rows.length > 0) internalId = driver.rows[0].id;
+      }
+
+      // Auto-approve all documents when driver is verified
+      await query(
+        "UPDATE driver_documents SET status = 'verified', verified_at = NOW() WHERE driver_id = $1",
+        [internalId]
+      );
+    } else {
+      await query(
+        `UPDATE drivers SET kyc_status = $1, updated_at = NOW() WHERE ${idColumn} = $2`,
+        [kycStatus, id]
+      );
+    }
   }
 
   static async updateProfile(id: string, data: any) {

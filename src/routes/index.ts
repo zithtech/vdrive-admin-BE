@@ -49,7 +49,10 @@ router.use('/packages', packageRoutes);
 router.use('/admin-users', userRoutes);
 router.use('/users', userManagementRoutes);
 router.use('/drivers', driverManagementRoutes);
+import tripVerificationRoutes from '../modules/trip-management/tripVerification.routes';
+
 router.use('/trips', tripManagementRoutes);
+router.use('/trip-verification', tripVerificationRoutes);
 router.use('/generate-presigned-url', s3Routes);
 router.use('/driver-reconciliation', driverReconciliationRoutes);
 router.use('/recharge-plans', rechargePlanRoutes);
