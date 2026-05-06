@@ -1,5 +1,6 @@
 import { PriceRepository } from './price.repository';
 import { PriceSetting, PriceSettingResponse } from './price.model';
+import { logger } from '../../shared/logger';
 
 export const PriceService = {
   async getPriceSettings(
@@ -98,7 +99,7 @@ export const PriceService = {
         results.push(result);
       } catch (error) {
         // Log error and continue with next item
-        console.error(`Error creating price setting ${i}:`, error);
+        logger.error(`Error creating price setting ${i}:`, error);
         // You might want to collect errors and return them
       }
     }

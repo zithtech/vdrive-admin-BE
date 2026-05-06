@@ -1,4 +1,5 @@
 import { Pool } from 'pg';
+import { logger } from './logger';
 
 let pool: Pool;
 export const connectDatabase = async () => {
@@ -23,14 +24,14 @@ export const connectDatabase = async () => {
 
     // Test connection
     await pool.query('SELECT NOW()');
-    console.log('✅ Connected to PostgreSQL');
+    logger.info('✅ Connected to PostgreSQL');
 
     return pool;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('❌ PostgreSQL connection failed:', errorMessage);
+    logger.error('❌ PostgreSQL connection failed:', { message: errorMessage });
     // Optional detailed debugging:
-    console.error('🔍 Full error:', error);
+    logger.error('🔍 Full error:', error);
     throw new Error('Database connection failed');
   }
 };
