@@ -103,7 +103,7 @@ export const CouponService = {
     return CouponRepository.recordUsage(usageData);
   },
 
-  async notifyUsers(couponId: string, target: string, userId?: string) {
+  async notifyUsers(couponId: string, target: string, userId?: string | string[]) {
     return CouponRepository.triggerNotification(couponId, target, userId);
   }
 };

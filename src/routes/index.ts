@@ -25,6 +25,7 @@ import pricingCombinationRoutes from '../modules/pricing-combinations/pricing-co
 import { openCouponRoutes, adminCouponRoutes } from '../modules/coupon-management/coupon.routes';
 import referralManagementRoutes from '../modules/referral-management/referral.routes';
 import promoRoutes from '../modules/promo-management/promo.routes';
+import notificationRoutes from '../modules/notification-management/notification.routes';
 
 const router = Router();
 
@@ -61,6 +62,7 @@ router.use('/taxes', taxRoutes);
 router.use('/pricing-combinations', pricingCombinationRoutes);
 router.use('/coupons', adminCouponRoutes);
 router.use('/referrals', referralManagementRoutes);
+router.use('/notification-management', notificationRoutes);
 
 router.get('/internal/trip-alert', (req, res) => {
   const { trip, secret } = req.body;
