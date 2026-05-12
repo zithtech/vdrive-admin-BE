@@ -93,4 +93,42 @@ export const RechargePlanController = {
       next(err);
     }
   },
+
+  async getSubscriptionStats(req: Request, res: Response, next: NextFunction) {
+    try {
+      const stats = await RechargePlanService.getSubscriptionStats();
+      return successResponse(res, 200, "Subscription stats fetched successfully", stats);
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async getDriverSubscriptionHistory(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { driverId } = req.params;
+      const history = await RechargePlanService.getDriverSubscriptionHistory(driverId);
+      return successResponse(res, 200, "Driver subscription history fetched successfully", history);
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async notifyExpiringSubscribers(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await RechargePlanService.notifyExpiringSubscribers();
+      return successResponse(res, 200, "Expiry notifications processed", result);
+    } catch (err) {
+      next(err);
+    }
+  },
+  
+  async notifyIndividualSubscriber(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { driverId } = req.body;
+      const result = await RechargePlanService.notifyIndividualSubscriber(driverId);
+      return successResponse(res, 200, "Individual notification processed", result);
+    } catch (err) {
+      next(err);
+    }
+  },
 };

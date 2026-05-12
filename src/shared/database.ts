@@ -4,7 +4,7 @@ import { logger } from './logger';
 let pool: Pool;
 export const connectDatabase = async () => {
   try {
-    console.log(process.env.DB_HOST, 'process.env.DB_HOST');
+    logger.info(`Connecting to database: ${process.env.DB_HOST}`);
 
     if (!pool) {
       pool = new Pool({

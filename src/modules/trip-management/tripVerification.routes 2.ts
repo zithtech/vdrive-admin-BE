@@ -13,6 +13,5 @@ router.get('/comparison/:driverId', TripVerificationController.getComparisonData
 router.put('/verify/:id', TripVerificationController.verifySimple);
 router.put('/verify-granular/:id', TripVerificationController.verifyGranular);
 router.get('/trip/:tripId', TripVerificationController.getByTripId);
-router.get('/history/:id', TripVerificationController.getHistory);
 
 export default router;

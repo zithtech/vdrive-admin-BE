@@ -212,20 +212,23 @@ export const DriverManagementController = {
   },
 
   async getRideActivity(req: Request, res: Response, next: NextFunction) {
-    // This might need a new repository for trips
-    return res.status(501).json({ message: 'Ride activity fetching from local DB not yet implemented.' });
+    return forwardRequest(req, res, next, config.userDriverApiUrl);
   },
 
   async getPerformance(req: Request, res: Response, next: NextFunction) {
-    return res.status(501).json({ message: 'Performance fetching from local DB not yet implemented.' });
+    return forwardRequest(req, res, next, config.userDriverApiUrl);
   },
 
   async getEarningsSummary(req: Request, res: Response, next: NextFunction) {
-    return res.status(501).json({ message: 'Earnings summary fetching from local DB not yet implemented.' });
+    return forwardRequest(req, res, next, config.userDriverApiUrl);
   },
 
   async getWalletBalance(req: Request, res: Response, next: NextFunction) {
-    return res.status(501).json({ message: 'Wallet balance fetching from local DB not yet implemented.' });
+    return forwardRequest(req, res, next, config.userDriverApiUrl);
+  },
+
+  async getTodayOverview(req: Request, res: Response, next: NextFunction) {
+    return forwardRequest(req, res, next, config.userDriverApiUrl);
   },
 
   async searchNearbyDrivers(req: Request, res: Response, next: NextFunction) {

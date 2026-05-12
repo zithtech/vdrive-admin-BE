@@ -62,12 +62,4 @@ export const TripVerificationController = {
     const { tripId } = req.params;
     return forwardRequest(req, res, next, config.userDriverApiUrl, `/api/drivers/trip-verification/trip/${tripId}`);
   },
-
-  /**
-   * Get verification history for a specific verification ID
-   */
-  async getHistory(req: Request, res: Response, next: NextFunction) {
-    const { id } = req.params;
-    return forwardRequest(req, res, next, config.userDriverApiUrl, `/api/drivers/trip-verification/history/${id}`);
-  },
 };

@@ -190,13 +190,12 @@ export const initSocket = (httpServer: HttpServer): Server => {
     }
 
     // Join admin sockets to a dedicated room based on role
-    // if (socket.data.user?.role === 'admin') {
     socket.on("JOIN_ADMIN_ROOM", () => {
       socket.join("admin");
-      console.log(`Socket ${socket.id} joined admin room`);
+
       logger.info(`🔐 Admin socket ${socket.id} joined admin room`);
     });
-    // }
+
 
     logger.info(`🔌 Socket connected: ${socket.id} (User: ${userName} | ID: ${userId})`);
 

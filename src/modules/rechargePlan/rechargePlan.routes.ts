@@ -8,7 +8,9 @@ import{ RechargePlanValidation} from './rechargePlan.validator';
 const router = Router();
 
 router.get('/', RechargePlanController.getRechargePlans);
+router.get('/stats', RechargePlanController.getSubscriptionStats);
 router.get('/active-subscriptions', RechargePlanController.getAllActiveDriverSubscriptions);
+router.get('/driver-history/:driverId', RechargePlanController.getDriverSubscriptionHistory);
 
 
 router.get(
@@ -53,6 +55,9 @@ router.delete(
   validateParams(RechargePlanValidation.idValidation),
   RechargePlanController.deleteRechargePlan
 );
+
+router.post('/notify-expiring', RechargePlanController.notifyExpiringSubscribers);
+router.post('/notify-individual', RechargePlanController.notifyIndividualSubscriber);
 
 export default router;
 

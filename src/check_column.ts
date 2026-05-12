@@ -1,5 +1,7 @@
 import { Client } from 'pg';
 import * as dotenv from 'dotenv';
+import { logger } from './shared/logger';
+
 dotenv.config();
 
 async function check() {
@@ -18,12 +20,12 @@ async function check() {
       WHERE table_name = 'drivers' AND column_name = 'vdrive_id'
     `);
     if (res.rows.length > 0) {
-      console.log('COLUMN_EXISTS:', res.rows[0]);
+      logger.info('COLUMN_EXISTS:', res.rows[0]);
     } else {
-      console.log('COLUMN_MISSING');
+      logger.info('COLUMN_MISSING');
     }
   } catch (err) {
-    console.error('ERROR_CHECKING:', err);
+    logger.error('ERROR_CHECKING:', err);
   } finally {
     await client.end();
   }

@@ -12,19 +12,49 @@ const transformUrl = (url: string) => {
 };
 
 const transformDriverUrls = (driver: any) => {
-  if (driver.profile_pic_url) {
-    driver.profile_pic_url = transformUrl(driver.profile_pic_url);
-  }
-  if (driver.profilePicUrl) {
-    driver.profilePicUrl = transformUrl(driver.profilePicUrl);
+  // 1. Resolve raw profile URL from possible fields
+  let rawProfile = driver.profile_pic_url || driver.profilePicUrl || driver.profile_picture;
+  let resolvedUrl = null;
+
+  if (rawProfile) {
+    try {
+      // Handle potential JSON string from database
+      const parsed = typeof rawProfile === 'string' && rawProfile.startsWith('{') ? JSON.parse(rawProfile) : rawProfile;
+      resolvedUrl = typeof parsed === 'object' && parsed !== null ? parsed.url || parsed.front : parsed;
+    } catch (e) {
+      resolvedUrl = rawProfile;
+    }
   }
 
+  // 2. Fallback to profile_selfie document if no direct profile photo
+  if (!resolvedUrl && driver.documents && Array.isArray(driver.documents)) {
+    const selfie = driver.documents.find((d: any) => 
+      d.document_type?.toLowerCase().includes('profile_selfie') || 
+      d.document_type?.toLowerCase().includes('profile selfie') ||
+      d.document_type === 'PROFILE_SELFIE'
+    );
+    if (selfie && selfie.document_url) {
+      const docUrl = selfie.document_url;
+      resolvedUrl = typeof docUrl === 'object' && docUrl !== null ? docUrl.url || docUrl.front : docUrl;
+    }
+  }
+
+  // 3. Transform and sync URL fields
+  if (resolvedUrl) {
+    const transformed = transformUrl(resolvedUrl);
+    driver.profile_pic_url = transformed;
+    driver.profilePicUrl = transformed;
+    driver.profile_picture = transformed;
+  }
+
+  // 4. Transform individual documents
   if (driver.documents && Array.isArray(driver.documents)) {
     driver.documents = driver.documents.map((doc: any) => {
       if (doc.document_url) {
         if (typeof doc.document_url === 'object' && doc.document_url !== null) {
           if (doc.document_url.front) doc.document_url.front = transformUrl(doc.document_url.front);
           if (doc.document_url.back) doc.document_url.back = transformUrl(doc.document_url.back);
+          if (doc.document_url.url) doc.document_url.url = transformUrl(doc.document_url.url);
         } else if (typeof doc.document_url === 'string') {
           doc.document_url = transformUrl(doc.document_url);
         }
@@ -309,7 +339,7 @@ export class DriverManagementRepository {
   }
 
   static async verifyDriver(id: string, kycStatus: string) {
-    console.log(`[DEBUG] verifyDriver called for ID: ${id}, kycStatus: ${kycStatus}`);
+    logger.info(`verifyDriver called for ID: ${id}, kycStatus: ${kycStatus}`);
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     const isUuid = uuidRegex.test(id);
     const idColumn = isUuid ? 'id' : 'vdrive_id';
@@ -345,7 +375,27 @@ export class DriverManagementRepository {
     const values: any[] = [];
     let counter = 1;
 
-    const allowedFields = ['first_name', 'last_name', 'email', 'phone_number', 'dob', 'gender', 'role', 'address'];
+    // Auto-compute full_name if first_name or last_name is being updated
+    if (data.first_name !== undefined || data.last_name !== undefined) {
+      // If only one is provided, we need to fetch the other from DB
+      if (data.first_name === undefined || data.last_name === undefined) {
+        const existing = await query('SELECT first_name, last_name FROM drivers WHERE id = $1', [id]);
+        if (existing.rows.length > 0) {
+          const firstName = data.first_name ?? existing.rows[0].first_name ?? '';
+          const lastName = data.last_name ?? existing.rows[0].last_name ?? '';
+          data.full_name = `${firstName} ${lastName}`.trim();
+        }
+      } else {
+        data.full_name = `${data.first_name} ${data.last_name}`.trim();
+      }
+    }
+
+    // Map 'dob' from frontend to 'date_of_birth' for database
+    if (data.dob !== undefined && data.date_of_birth === undefined) {
+      data.date_of_birth = data.dob;
+    }
+
+    const allowedFields = ['first_name', 'last_name', 'full_name', 'email', 'phone_number', 'date_of_birth', 'gender', 'role', 'address'];
 
     for (const key of allowedFields) {
       if (data[key] !== undefined) {
@@ -452,6 +502,16 @@ export class DriverManagementRepository {
       "SELECT COUNT(DISTINCT driver_id) FROM driver_documents WHERE expiry_date <= CURRENT_DATE + INTERVAL '7 days' AND expiry_date >= CURRENT_DATE"
     );
 
+    // Compliance Health calculation
+    const verifiedDriversResult = await query(
+      "SELECT COUNT(*) FROM drivers WHERE is_deleted = false AND kyc_status = 'verified'"
+    );
+    const verifiedDriversCount = parseInt(verifiedDriversResult.rows[0]?.count || '0');
+    const totalDriversCount = parseInt(totalResult.rows[0]?.count || '0');
+    const complianceHealth = totalDriversCount > 0 
+      ? Math.round((verifiedDriversCount / totalDriversCount) * 100) 
+      : 100;
+
     const activeTripsCount = parseInt(onTripResult.rows[0]?.count || '0');
     const onlineCount = parseInt(onlineResult.rows[0]?.count || '0');
 
@@ -477,7 +537,7 @@ export class DriverManagementRepository {
     };
 
     return {
-      totalDrivers: parseInt(totalResult.rows[0]?.count || '0'),
+      totalDrivers: totalDriversCount,
       activeDrivers: parseInt(activeResult.rows[0]?.count || '0'),
       availableDrivers: Math.max(0, onlineCount - activeTripsCount),
       onTripDrivers: activeTripsCount,
@@ -494,6 +554,8 @@ export class DriverManagementRepository {
       todayRevenue: stats.todayRevenue,
       pendingVerifications: parseInt(pendingVerificationsResult.rows[0]?.count || '0'),
       documentExpiryAlerts: parseInt(documentExpiryAlertsResult.rows[0]?.count || '0'),
+      complianceHealth,
+      lastSyncAt: new Date().toISOString(),
       trends: {
         users: calculateTrend(stats.todayNewUsers, stats.yesterdayUsers),
         drivers: calculateTrend(stats.todayNewDrivers, stats.yesterdayDrivers),
