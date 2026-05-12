@@ -70,8 +70,9 @@ export const PromoController = {
   async notifyDrivers(req: Request, res: Response) {
     try {
       const id = parseInt(req.params.id);
-      const { target, driverId } = req.body;
-      const promo = await PromoService.triggerNotification(id, target, driverId);
+      const { target, driverIds, driverId } = req.body;
+      const specificDrivers = driverIds || driverId;
+      const promo = await PromoService.triggerNotification(id, target, specificDrivers);
       res.status(200).json({ success: true, data: promo });
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });

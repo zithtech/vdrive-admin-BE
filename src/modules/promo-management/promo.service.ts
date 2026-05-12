@@ -26,7 +26,7 @@ export const PromoService = {
     return await PromoRepository.delete(id);
   },
 
-  async triggerNotification(id: number, target: string, driverId?: string) {
+  async triggerNotification(id: number, target: string, driverId?: string | string[]) {
     return await PromoRepository.triggerNotification(id, target, driverId);
   }
 };

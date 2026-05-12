@@ -137,7 +137,7 @@ export const CouponRepository = {
     return res.rows[0];
   },
 
-  async triggerNotification(couponId: string, target: string, userId?: string) {
+  async triggerNotification(couponId: string, target: string, userId?: string | string[]) {
     const res = await query(
       `UPDATE coupons 
        SET notify_status = 'PENDING', 
