@@ -37,8 +37,8 @@ export const RechargePlanRepository = {
   async create(data: any) {
     const res = await query(
       `INSERT INTO recharge_plans 
-       (plan_name, description, validity_days, daily_price, weekly_price, monthly_price, features, is_active, tag)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+       (plan_name, description, validity_days, daily_price, weekly_price, monthly_price, features, is_active, tag, price)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
        RETURNING *`,
       [
         data.planName,
@@ -50,6 +50,7 @@ export const RechargePlanRepository = {
         JSON.stringify(data.features ?? []),
         data.isActive ?? true,
         data.tag || null,
+        data.monthlyPrice ?? 0,
       ]
     );
     return res.rows[0];
@@ -67,8 +68,9 @@ export const RechargePlanRepository = {
            monthly_price = $6,
            features = $7,
            is_active = $8,
-           tag = $9
-       WHERE id = $10 RETURNING *`,
+           tag = $9,
+           price = $10
+       WHERE id = $11 RETURNING *`,
       [
         data.planName,
         data.description,
@@ -79,6 +81,7 @@ export const RechargePlanRepository = {
         JSON.stringify(data.features || []),
         data.isActive,
         data.tag || null,
+        data.monthlyPrice ?? 0,
         id,
       ]
     );

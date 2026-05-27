@@ -62,6 +62,19 @@ const transformDriverUrls = (driver: any) => {
       return doc;
     });
   }
+
+  // 5. Populate kyc_status for frontend backwards compatibility
+  if (driver.kyc) {
+    try {
+      const parsedKyc = typeof driver.kyc === 'string' ? JSON.parse(driver.kyc) : driver.kyc;
+      driver.kyc_status = parsedKyc.overallStatus || 'pending';
+    } catch (e) {
+      driver.kyc_status = 'pending';
+    }
+  } else {
+    driver.kyc_status = 'pending';
+  }
+
   return driver;
 };
 
@@ -333,7 +346,7 @@ export class DriverManagementRepository {
     const onboardingUpdate = status === 'active' ? ", onboarding_status = 'ONBOARDING_COMPLETED', documents_submitted = true" : "";
     
     await query(
-      `UPDATE drivers SET status = $1, status_reason = $2, status_updated_at = NOW(), updated_at = NOW() ${onboardingUpdate} WHERE ${idColumn} = $3`,
+      `UPDATE drivers SET status = $1, status_reason = $2, updated_at = NOW() ${onboardingUpdate} WHERE ${idColumn} = $3`,
       [status, reason || null, id]
     );
   }
@@ -344,10 +357,15 @@ export class DriverManagementRepository {
     const isUuid = uuidRegex.test(id);
     const idColumn = isUuid ? 'id' : 'vdrive_id';
 
+    const kycData = JSON.stringify({
+      overallStatus: kycStatus,
+      verifiedAt: kycStatus === 'verified' ? new Date().toISOString() : null
+    });
+
     if (kycStatus === 'verified') {
       await query(
-        `UPDATE drivers SET kyc_status = $1, status = 'active', documents_submitted = true, onboarding_status = 'ONBOARDING_COMPLETED', status_updated_at = NOW(), updated_at = NOW() WHERE ${idColumn} = $2`,
-        [kycStatus, id]
+        `UPDATE drivers SET kyc = COALESCE(kyc, '{}'::jsonb) || $1, status = 'active', documents_submitted = true, onboarding_status = 'ONBOARDING_COMPLETED', updated_at = NOW() WHERE ${idColumn} = $2`,
+        [kycData, id]
       );
       
       // We need the internal UUID for the documents update if we don't have it
@@ -364,8 +382,8 @@ export class DriverManagementRepository {
       );
     } else {
       await query(
-        `UPDATE drivers SET kyc_status = $1, updated_at = NOW() WHERE ${idColumn} = $2`,
-        [kycStatus, id]
+        `UPDATE drivers SET kyc = COALESCE(kyc, '{}'::jsonb) || $1, updated_at = NOW() WHERE ${idColumn} = $2`,
+        [kycData, id]
       );
     }
   }
@@ -496,7 +514,7 @@ export class DriverManagementRepository {
 
     // Onboarding Pipeline
     const pendingVerificationsResult = await query(
-      "SELECT COUNT(*) FROM drivers WHERE is_deleted = false AND kyc_status = 'pending' AND (documents_submitted = true OR id IN (SELECT driver_id FROM driver_documents))"
+      "SELECT COUNT(*) FROM drivers WHERE is_deleted = false AND (kyc->>'overallStatus' = 'pending' OR kyc IS NULL) AND (documents_submitted = true OR id IN (SELECT driver_id FROM driver_documents))"
     );
     const documentExpiryAlertsResult = await query(
       "SELECT COUNT(DISTINCT driver_id) FROM driver_documents WHERE expiry_date <= CURRENT_DATE + INTERVAL '7 days' AND expiry_date >= CURRENT_DATE"
@@ -504,7 +522,7 @@ export class DriverManagementRepository {
 
     // Compliance Health calculation
     const verifiedDriversResult = await query(
-      "SELECT COUNT(*) FROM drivers WHERE is_deleted = false AND kyc_status = 'verified'"
+      "SELECT COUNT(*) FROM drivers WHERE is_deleted = false AND kyc->>'overallStatus' = 'verified'"
     );
     const verifiedDriversCount = parseInt(verifiedDriversResult.rows[0]?.count || '0');
     const totalDriversCount = parseInt(totalResult.rows[0]?.count || '0');
