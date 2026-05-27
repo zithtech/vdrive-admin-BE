@@ -9,6 +9,7 @@ const PORT = config.port || 3000;
 const dbUser = config.db.user;
 
 import { initSocket } from './services/socket';
+import { initSubscriptionScheduler } from './services/subscriptionScheduler';
 
 async function startServer() {
   try {
@@ -25,6 +26,7 @@ async function startServer() {
     });
 
     initSocket(server);
+    initSubscriptionScheduler();
 
     const shutdown = (signal: string) => {
       logger.info(`${signal} received, shutting down gracefully`);

@@ -2,6 +2,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { DriverReconciliationService } from './driverReconciliation.service';
 import { DriverReconciliationPayload } from './driverReconciliation.model';
+import { logger } from '../../shared/logger';
 
 interface AuthRequest extends Request {
   user?: { id: string };
@@ -14,7 +15,7 @@ export class DriverReconciliationController {
       const result = await DriverReconciliationService.syncReconciliationData();
       return res.status(200).json(result);
     } catch (error: any) {
-      console.error('Error in syncReconciliationData:', error);
+      logger.error('Error in syncReconciliationData:', error);
       return res.status(500).json({
         success: false,
         message: error.message || 'Internal server error',
@@ -59,7 +60,7 @@ export class DriverReconciliationController {
         return res.status(500).json(result);
       }
     } catch (error: any) {
-      console.error('Error in processReconciliationData:', error);
+      logger.error('Error in processReconciliationData:', error);
       return res.status(500).json({
         success: false,
         message: 'Internal server error',
@@ -87,7 +88,7 @@ export class DriverReconciliationController {
         data: result,
       });
     } catch (error: any) {
-      console.error('Error in getUploadDetails:', error);
+      logger.error('Error in getUploadDetails:', error);
       return res.status(500).json({
         success: false,
         message: error.message || 'Internal server error',
@@ -123,7 +124,7 @@ export class DriverReconciliationController {
         data: result,
       });
     } catch (error: any) {
-      console.error('Error in getReconciliationRows:', error);
+      logger.error('Error in getReconciliationRows:', error);
       return res.status(500).json({
         success: false,
         message: error.message || 'Internal server error',
@@ -151,7 +152,7 @@ export class DriverReconciliationController {
         data: result,
       });
     } catch (error: any) {
-      console.error('Error in getAllReconciliationRows:', error);
+      logger.error('Error in getAllReconciliationRows:', error);
       return res.status(500).json({
         success: false,
         message: error.message || 'Internal server error',
@@ -179,7 +180,7 @@ export class DriverReconciliationController {
         data: result,
       });
     } catch (error: any) {
-      console.error('Error in getUploads:', error);
+      logger.error('Error in getUploads:', error);
       return res.status(500).json({
         success: false,
         message: error.message || 'Internal server error',
@@ -218,7 +219,7 @@ export class DriverReconciliationController {
 
       return res.status(200).json(result);
     } catch (error: any) {
-      console.error('Error in updateWhatsAppCampaign:', error);
+      logger.error('Error in updateWhatsAppCampaign:', error);
       return res.status(500).json({
         success: false,
         message: error.message || 'Internal server error',
@@ -236,7 +237,7 @@ export class DriverReconciliationController {
         data: summary,
       });
     } catch (error: any) {
-      console.error('Error in getReconciliationSummary:', error);
+      logger.error('Error in getReconciliationSummary:', error);
       return res.status(500).json({
         success: false,
         message: error.message || 'Internal server error',

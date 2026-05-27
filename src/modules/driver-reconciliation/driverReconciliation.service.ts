@@ -6,6 +6,7 @@ import {
   DriverReconciliationRow,
   MatchResult,
 } from './driverReconciliation.model';
+import { logger } from '../../shared/logger';
 
 export class DriverReconciliationService {
   // Sync all reconciliation records
@@ -18,7 +19,7 @@ export class DriverReconciliationService {
         rows_synced: rowsSynced
       };
     } catch (error: any) {
-      console.error('❌ Error syncing reconciliation data:', error);
+      logger.error('❌ Error syncing reconciliation data:', error);
       throw new Error(`Failed to sync reconciliation data: ${error.message}`);
     }
   }
@@ -29,7 +30,7 @@ export class DriverReconciliationService {
     payload: DriverReconciliationPayload
   ): Promise<ProcessingResult> {
     try {
-      console.log(
+      logger.info(
         `🧪 Processing reconciliation data: ${payload.filename} with ${payload.data.length} rows`
       );
 
@@ -116,7 +117,7 @@ export class DriverReconciliationService {
 
           rowsToInsert.push(reconciliationRow);
         } catch (rowError: any) {
-          console.error(`Error processing row ${i + 1}:`, rowError);
+          logger.error(`Error processing row ${i + 1}:`, rowError);
           errors.push({
             row_index: i + 1,
             error_message: `Processing error: ${rowError.message}`,
@@ -147,7 +148,7 @@ export class DriverReconciliationService {
         payload.data.length - errors.length
       );
 
-      console.log(`✅ Processed ${payload.data.length - errors.length} rows successfully`);
+      logger.info(`✅ Processed ${payload.data.length - errors.length} rows successfully`);
 
       // Fetch the created rows for the response
       const savedRows = await DriverReconciliationRepository.getRowsByUploadId(uploadId);
@@ -161,7 +162,7 @@ export class DriverReconciliationService {
         errors: errors.length > 0 ? errors : undefined,
       };
     } catch (error: any) {
-      console.error('❌ Error processing reconciliation data:', error);
+      logger.error('❌ Error processing reconciliation data:', error);
       return {
         success: false,
         message: `Failed to process reconciliation data: ${error.message}`,

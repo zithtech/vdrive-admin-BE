@@ -1,5 +1,8 @@
 
 import { RechargePlanRepository } from './rechargePlan.repository';
+import axios from 'axios';
+import config from '../../config';
+import { logger } from '../../shared/logger';
 
 export const RechargePlanService = {
   
@@ -84,12 +87,145 @@ export const RechargePlanService = {
     return await RechargePlanRepository.getActiveSubscriptions();
   },
 
+  async getSubscriptionStats() {
+    return await RechargePlanRepository.getSubscriptionStats();
+  },
+
+  async getDriverSubscriptionHistory(driverId: string) {
+    return await RechargePlanRepository.getDriverSubscriptionHistory(driverId);
+  },
+
   async getPlanHistory(id: number) {
     return await RechargePlanRepository.getHistory(id);
   },
 
   async deletePlan(id: number) {
     return await RechargePlanRepository.delete(id);
+  },
+
+  async notifyExpiringSubscribers() {
+    const allActiveDrivers = await RechargePlanRepository.getAllActiveSubscribersDetailed();
+    
+    if (allActiveDrivers.length === 0) {
+      return { sentCount: 0, message: 'No active subscriptions found' };
+    }
+
+    let sentCount = 0;
+    const notificationUrl = `${config.userDriverApiUrl}/api/notifications/send`;
+
+    for (const driver of allActiveDrivers) {
+      try {
+        const daysLeft = parseInt(driver.days_left);
+        let daysLeftText = '';
+        
+        if (daysLeft < 0) daysLeftText = 'has expired';
+        else if (daysLeft === 0) daysLeftText = 'expires today';
+        else if (daysLeft === 1) daysLeftText = 'expires tomorrow';
+        else daysLeftText = `expires in ${daysLeft} days`;
+
+        await axios.post(notificationUrl, {
+          driverId: driver.driver_id,
+          title: '📋 Subscription Status Update',
+          body: `Hi ${driver.driver_name}, you are currently on the ${driver.plan_name} plan. It ${daysLeftText} (${new Date(driver.expiry_date).toLocaleDateString()}).`,
+          data: {
+            type: 'PLAN_EXPIRY_REMINDER',
+            expiryDate: driver.expiry_date
+          }
+        }, {
+          headers: { 'x-api-key': config.internalServiceApiKey }
+        });
+        sentCount++;
+      } catch (err: any) {
+        logger.error(`Failed to notify driver ${driver.driver_id}: ${err.message}`);
+      }
+    }
+
+    return { sentCount, totalActive: allActiveDrivers.length };
+  },
+
+  async notifyIndividualSubscriber(driverId: string) {
+    const subscription = await RechargePlanRepository.getDriverActiveSubscription(driverId);
+    
+    if (!subscription) {
+      throw new Error('No active subscription found for this driver');
+    }
+
+    const notificationUrl = `${config.userDriverApiUrl}/api/notifications/send`;
+    
+    const daysLeft = parseInt(subscription.days_left);
+    let daysLeftText = '';
+    
+    if (daysLeft < 0) daysLeftText = 'has expired';
+    else if (daysLeft === 0) daysLeftText = 'expires today';
+    else if (daysLeft === 1) daysLeftText = 'expires tomorrow';
+    else daysLeftText = `expires in ${daysLeft} days`;
+
+    await axios.post(notificationUrl, {
+      driverId: subscription.driver_id,
+      title: '📋 Subscription Status',
+      body: `Hi ${subscription.driver_name}, you are on the ${subscription.plan_name} plan. It ${daysLeftText} (${new Date(subscription.expiry_date).toLocaleDateString()}).`,
+      data: {
+        type: 'PLAN_EXPIRY_REMINDER',
+        expiryDate: subscription.expiry_date
+      }
+    }, {
+      headers: { 'x-api-key': config.internalServiceApiKey }
+    });
+
+    return { success: true };
+  },
+
+  async runAutomatedDailyNotifications() {
+    const allDrivers = await RechargePlanRepository.getAllActiveSubscribersDetailed();
+    let sentCount = 0;
+    const notificationUrl = `${config.userDriverApiUrl}/api/notifications/send`;
+
+    for (const driver of allDrivers) {
+      try {
+        const daysLeft = parseInt(driver.days_left);
+        let title = '';
+        let body = '';
+        let shouldNotify = false;
+
+        if (daysLeft === 3) {
+          title = '⏳ Subscription Reminder';
+          body = `Hi ${driver.driver_name}, your ${driver.plan_name} plan expires in 3 days. Prepare for a recharge to continue service smoothly.`;
+          shouldNotify = true;
+        } else if (daysLeft === 1) {
+          title = '⚠️ Action Required: Subscription Expiring';
+          body = `Hi ${driver.driver_name}, your subscription ends tomorrow. Recharge now to avoid service interruption!`;
+          shouldNotify = true;
+        } else if (daysLeft === 0) {
+          title = '🚨 Final Notice: Subscription Expires Today';
+          body = `Hi ${driver.driver_name}, your subscription expires today. This is your last day to recharge before the plan ends.`;
+          shouldNotify = true;
+        } else if (daysLeft === -1) {
+          title = '❌ Subscription Expired';
+          body = `Hi ${driver.driver_name}, your subscription has expired. Please recharge immediately to resume receiving rides.`;
+          shouldNotify = true;
+        }
+
+        if (shouldNotify) {
+          await axios.post(notificationUrl, {
+            driverId: driver.driver_id,
+            title,
+            body,
+            data: {
+              type: 'PLAN_EXPIRY_REMINDER',
+              daysLeft,
+              expiryDate: driver.expiry_date
+            }
+          }, {
+            headers: { 'x-api-key': config.internalServiceApiKey }
+          });
+          sentCount++;
+        }
+      } catch (err: any) {
+        logger.error(`Failed automated notification for driver ${driver.driver_id}: ${err.message}`);
+      }
+    }
+
+    return { sentCount, scannedCount: allDrivers.length };
   },
 };
 

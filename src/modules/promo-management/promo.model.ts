@@ -12,6 +12,7 @@ export interface Promo {
   start_date: Date;
   expiry_date?: Date;
   is_active: boolean;
+  promo_type: 'OFFER' | 'REFERRAL_REWARD';
   created_at?: Date;
   updated_at?: Date;
 }

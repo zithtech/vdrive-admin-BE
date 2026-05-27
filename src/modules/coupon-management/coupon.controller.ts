@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { CouponService } from './coupon.service';
 import axios from 'axios';
 import config from '../../config';
+import { logger } from '../../shared/logger';
 
 const notifyUserBackend = async (event: string, payload: any) => {
   try {
@@ -11,7 +12,7 @@ const notifyUserBackend = async (event: string, payload: any) => {
       secret: config.internalSecret,
     });
   } catch (error) {
-    console.error('Webhook notification failed:', error);
+    logger.error('Webhook notification failed:', error);
   }
 };
 

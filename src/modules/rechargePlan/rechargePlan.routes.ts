@@ -9,7 +9,9 @@ import { requirePermission } from '../../shared/authorization';
 const router = Router();
 
 router.get('/',requirePermission('recharge', 'read'), RechargePlanController.getRechargePlans);
-router.get('/active-subscriptions' ,requirePermission('recharge', 'read'), RechargePlanController.getAllActiveDriverSubscriptions);
+router.get('/stats',requirePermission('recharge', 'read'), RechargePlanController.getSubscriptionStats);
+router.get('/active-subscriptions',requirePermission('recharge', 'read'), RechargePlanController.getAllActiveDriverSubscriptions);
+router.get('/driver-history/:driverId',requirePermission('recharge', 'read'), RechargePlanController.getDriverSubscriptionHistory);
 
 
 router.get(
@@ -60,6 +62,9 @@ router.delete(
   validateParams(RechargePlanValidation.idValidation),
   RechargePlanController.deleteRechargePlan
 );
+
+router.post('/notify-expiring', requirePermission('recharge', 'update'), RechargePlanController.notifyExpiringSubscribers);
+router.post('/notify-individual', requirePermission('recharge', 'update'), RechargePlanController.notifyIndividualSubscriber);
 
 export default router;
 

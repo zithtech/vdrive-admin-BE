@@ -6,7 +6,8 @@ export const PromoController = {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 10;
-      const result = await PromoService.getPromos(page, limit);
+      const promo_type = (req.query.promo_type as string) || 'OFFER';
+      const result = await PromoService.getPromos(page, limit, promo_type);
       res.status(200).json({ success: true, ...result });
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });

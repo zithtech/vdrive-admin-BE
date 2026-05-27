@@ -2,19 +2,29 @@ import { query } from '../../shared/database';
 import { Promo } from './promo.model';
 
 export const PromoRepository = {
-  async getPromos(page: number, limit: number) {
+  async getPromos(page: number, limit: number, promoType?: string) {
     const offset = (page - 1) * limit;
+    let whereClause = '';
+    const params: any[] = [limit, offset];
+    
+    if (promoType) {
+      whereClause = 'WHERE promo_type = $3';
+      params.push(promoType);
+    }
+
     const res = await query(
       `SELECT p.*, 
         (SELECT COUNT(*) FROM promo_usage WHERE promo_id = p.id) as usage_count,
         (SELECT SUM(discount_applied) FROM promo_usage WHERE promo_id = p.id) as total_discount
        FROM promos p
+       ${whereClause}
        ORDER BY p.created_at DESC 
        LIMIT $1 OFFSET $2`,
-      [limit, offset]
+      params
     );
 
-    const totalRes = await query(`SELECT COUNT(*) AS total FROM promos`);
+    const countWhereClause = promoType ? 'WHERE promo_type = $1' : '';
+    const totalRes = await query(`SELECT COUNT(*) AS total FROM promos ${countWhereClause}`, promoType ? [promoType] : []);
 
     return {
       data: res.rows,
@@ -30,8 +40,8 @@ export const PromoRepository = {
   async create(data: Partial<Promo>) {
     const res = await query(
       `INSERT INTO promos 
-       (code, description, discount_type, discount_value, target_type, target_driver_id, min_rides_required, max_uses, max_uses_per_driver, start_date, expiry_date, is_active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+       (code, description, discount_type, discount_value, target_type, target_driver_id, min_rides_required, max_uses, max_uses_per_driver, start_date, expiry_date, is_active, promo_type)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
        RETURNING *`,
       [
         data.code,
@@ -45,7 +55,8 @@ export const PromoRepository = {
         data.max_uses_per_driver || 1,
         data.start_date || new Date(),
         data.expiry_date,
-        data.is_active ?? true
+        data.is_active ?? true,
+        data.promo_type || 'OFFER'
       ]
     );
     return res.rows[0];
@@ -56,8 +67,8 @@ export const PromoRepository = {
       `UPDATE promos 
        SET code=$1, description=$2, discount_type=$3, discount_value=$4, target_type=$5, 
            target_driver_id=$6, min_rides_required=$7, max_uses=$8, max_uses_per_driver=$9, 
-           start_date=$10, expiry_date=$11, is_active=$12, updated_at=NOW()
-       WHERE id=$13 RETURNING *`,
+           start_date=$10, expiry_date=$11, is_active=$12, promo_type=$13, updated_at=NOW()
+       WHERE id=$14 RETURNING *`,
       [
         data.code,
         data.description,
@@ -71,6 +82,7 @@ export const PromoRepository = {
         data.start_date,
         data.expiry_date,
         data.is_active,
+        data.promo_type,
         id
       ]
     );

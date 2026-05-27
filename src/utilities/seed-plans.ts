@@ -1,6 +1,8 @@
 import dotenv from 'dotenv';
 import path from 'path';
 import { connectDatabase, query } from '../shared/database';
+import { logger } from '../shared/logger';
+
 
 dotenv.config();
 
@@ -66,7 +68,7 @@ const plans = [
 async function seed() {
   try {
     await connectDatabase();
-    console.log('Seeding plans...');
+    logger.info('Seeding plans...');
 
     for (const plan of plans) {
       await query(
@@ -86,13 +88,13 @@ async function seed() {
           plan.is_active
         ]
       );
-      console.log(`- Seeded: ${plan.plan_name}`);
+      logger.info(`- Seeded: ${plan.plan_name}`);
     }
 
-    console.log('✅ Seeding completed successfully!');
+    logger.info('✅ Seeding completed successfully!');
     process.exit(0);
   } catch (err) {
-    console.error('❌ Seeding failed:', err);
+    logger.error('❌ Seeding failed:', err);
     process.exit(1);
   }
 }
