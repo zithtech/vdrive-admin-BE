@@ -159,7 +159,8 @@
     "setup": "npm install && npm run build",
     "migrate": "node-pg-migrate up",
     "migrate:down": "node-pg-migrate down",
-    "migrate:create": "node-pg-migrate create"
+    "migrate:create": "node-pg-migrate create",
+    "seed:permissions": "ts-node src/scripts/seed-permissions.ts"
   },
   "jest": {
     "preset": "ts-jest",

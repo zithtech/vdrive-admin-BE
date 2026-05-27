@@ -4,7 +4,8 @@ export interface AdminUser {
   password: string;
   email: string;
   contact: string | null;
-  role: 'admin' | 'super_admin';
+  role: string;
+  role_id: string | null;
   reset_token: string | null;
   reset_token_expiry: Date | null;
   created_at: Date;

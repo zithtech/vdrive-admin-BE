@@ -34,6 +34,14 @@ const rateLimiter = rateLimit({
 const security = [helmet(), hpp()];
 
 // CORS
+// const corsMiddleware = cors({
+//   origin: ['https://diastolic-elevatingly-renita.ngrok-free.dev', 'http://localhost:5173'],
+//   credentials: true,
+//   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+//   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-request-id', 'x-tunnel-id'],
+//   exposedHeaders: ['X-Request-Id', 'x-tunnel-id', 'Content-Length'],
+// });
+
 const corsMiddleware = cors({
   origin: true,
   credentials: true,
