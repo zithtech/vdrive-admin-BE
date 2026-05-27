@@ -26,6 +26,7 @@ import { openCouponRoutes, adminCouponRoutes } from '../modules/coupon-managemen
 import referralManagementRoutes from '../modules/referral-management/referral.routes';
 import promoRoutes from '../modules/promo-management/promo.routes';
 import notificationRoutes from '../modules/notification-management/notification.routes';
+import supportManagementRoutes from '../modules/support-management/supportManagement.routes';
 
 const router = Router();
 
@@ -50,7 +51,10 @@ router.use('/packages', packageRoutes);
 router.use('/admin-users', userRoutes);
 router.use('/users', userManagementRoutes);
 router.use('/drivers', driverManagementRoutes);
+import tripVerificationRoutes from '../modules/trip-management/tripVerification.routes';
+
 router.use('/trips', tripManagementRoutes);
+router.use('/trip-verification', tripVerificationRoutes);
 router.use('/generate-presigned-url', s3Routes);
 router.use('/driver-reconciliation', driverReconciliationRoutes);
 router.use('/recharge-plans', rechargePlanRoutes);
@@ -63,6 +67,7 @@ router.use('/pricing-combinations', pricingCombinationRoutes);
 router.use('/coupons', adminCouponRoutes);
 router.use('/referrals', referralManagementRoutes);
 router.use('/notification-management', notificationRoutes);
+router.use('/support-management', supportManagementRoutes);
 
 router.get('/internal/trip-alert', (req, res) => {
   const { trip, secret } = req.body;

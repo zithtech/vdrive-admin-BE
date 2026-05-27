@@ -73,10 +73,72 @@ export const initSocket = (httpServer: HttpServer): Server => {
       }
     });
 
+    // ✅ User backend notifies admin of a general trip status update
+    socket.on('TRIP_STATUS_UPDATE', (data) => {
+      logger.info('Trip status updated, forwarding to admin UI:', data);
+      if (io) {
+        io.to('admin').emit('ADMIN_TRIP_STATUS_UPDATE', data);
+      }
+    });
+
+    // ✅ User backend notifies admin of trip verification request
+    socket.on('TRIP_VERIFICATION_REQUESTED', (data) => {
+      logger.info('Trip verification requested, forwarding to admin UI:', data);
+      if (io) {
+        io.to('admin').emit('ADMIN_TRIP_VERIFICATION_REQUESTED', data);
+      }
+    });
+
+    // ✅ User backend notifies admin of trip verification approved
+    socket.on('TRIP_VERIFICATION_APPROVED', (data) => {
+      logger.info('Trip verification approved, forwarding to admin UI:', data);
+      if (io) {
+        io.to('admin').emit('ADMIN_TRIP_VERIFICATION_APPROVED', data);
+      }
+    });
+
+    // ✅ User backend notifies admin of trip verification rejected
+    socket.on('TRIP_VERIFICATION_REJECTED', (data) => {
+      logger.info('Trip verification rejected, forwarding to admin UI:', data);
+      if (io) {
+        io.to('admin').emit('ADMIN_TRIP_VERIFICATION_REJECTED', data);
+      }
+    });
+
     // ✅ User backend notifies admin of a driver location update
     socket.on('DRIVER_LOCATION_UPDATE', (data) => {
       if (io) {
         io.to('admin').emit('ADMIN_DRIVER_LOCATION', data);
+      }
+    });
+
+    // ✅ Support Ticket Handlers from User-Driver-API
+    socket.on('AGENT_REQUESTED', (ticketData) => {
+      logger.info('New agent request received from User Backend:', ticketData);
+      if (io) {
+        // Notify all admins about the new ticket
+        io.to('admin').emit('ADMIN_SUPPORT_TICKET_ALERT', ticketData);
+      }
+    });
+
+    socket.on('SUPPORT_TICKET_CLOSED', (data) => {
+      logger.info('Support ticket closed by driver:', data);
+      if (io) {
+        const { ticketId } = data;
+        // Notify the specific ticket room and all admins
+        io.to(`support_ticket_${ticketId}`).emit('TICKET_STATUS_UPDATE', { ticketId, status: 'closed' });
+        io.to('admin').emit('ADMIN_SUPPORT_TICKET_CLOSED', data);
+      }
+    });
+
+    socket.on('SUPPORT_MESSAGE_FROM_DRIVER', (messageData) => {
+      logger.info('New support message from driver received:', messageData);
+      if (io) {
+        const { ticketId } = messageData;
+        // Broadcast to all admins in the ticket room
+        io.to(`support_ticket_${ticketId}`).emit('receiveSupportMessage', messageData);
+        // Also notify general admin room for a sidebar update/notification
+        io.to('admin').emit('ADMIN_SUPPORT_MESSAGE_NOTIFICATION', messageData);
       }
     });
 
@@ -158,13 +220,12 @@ export const initSocket = (httpServer: HttpServer): Server => {
     }
 
     // Join admin sockets to a dedicated room based on role
-    // if (socket.data.user?.role === 'admin') {
     socket.on("JOIN_ADMIN_ROOM", () => {
       socket.join("admin");
-      console.log(`Socket ${socket.id} joined admin room`);
+
       logger.info(`🔐 Admin socket ${socket.id} joined admin room`);
     });
-    // }
+
 
     logger.info(`🔌 Socket connected: ${socket.id} (User: ${userName} | ID: ${userId})`);
 
@@ -180,6 +241,35 @@ export const initSocket = (httpServer: HttpServer): Server => {
         }
       }
       logger.info(`❌ Socket disconnected: ${socket.id} (User: ${userName}). Reason: ${reason}`);
+    });
+
+    // ✅ SUPPORT TICKET HANDLERS
+    socket.on('joinSupportTicket', ({ ticketId }) => {
+      const room = `support_ticket_${ticketId}`;
+      socket.join(room);
+      logger.info(`🎧 Admin ${userName} joined support room: ${room}`);
+    });
+
+    socket.on('sendSupportMessage', async (data: { ticketId: string; senderId: string; senderType: string; message: string }) => {
+      const { ticketId, senderId, senderType, message } = data;
+      const room = `support_ticket_${ticketId}`;
+
+      try {
+        // 1. Broadcast to other admin sockets in the same room
+        socket.to(room).emit('receiveSupportMessage', {
+          ...data,
+          id: Date.now().toString(), // Temporary ID for immediate feedback
+          created_at: new Date().toISOString()
+        });
+
+        // 2. Notify User Backend via /internal namespace
+        const internalNsp = io?.of('/internal');
+        internalNsp?.emit('SUPPORT_MESSAGE_FROM_ADMIN', data);
+
+        logger.info(`📬 Forwarded support message for ticket ${ticketId} to User Backend`);
+      } catch (err) {
+        logger.error(`Failed to handle sendSupportMessage: ${err}`);
+      }
     });
 
     socket.on('error', (error) => {

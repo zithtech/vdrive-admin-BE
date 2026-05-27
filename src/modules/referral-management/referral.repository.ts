@@ -60,5 +60,33 @@ export const ReferralRepository = {
       params.push(excludeId);
     }
     await query(sql, params);
+  },
+
+  async getReferralLogs(userType: 'CUSTOMER' | 'DRIVER') {
+    const tableName = userType === 'DRIVER' ? 'drivers' : 'users';
+    
+    // Both drivers and users have first_name, last_name, and a generated full_name column
+    const result = await query(`
+      SELECT 
+        r.id,
+        r.referrer_id,
+        r.referee_id,
+        r.status,
+        0 as reward_amount,
+        r.created_at as referred_at,
+        r.updated_at as completed_at,
+        r.referral_type,
+        ref.referral_code,
+        ref.full_name as referrer_name,
+        ref.phone_number as referrer_phone,
+        ree.full_name as referee_name,
+        ree.phone_number as referee_phone
+      FROM referrals r
+      JOIN ${tableName} ref ON r.referrer_id = ref.id
+      LEFT JOIN ${tableName} ree ON r.referee_id = ree.id
+      WHERE r.referral_type = $1
+      ORDER BY r.created_at DESC
+    `, [userType]);
+    return result.rows;
   }
 };

@@ -60,6 +60,36 @@ export const getRedisClient = (): Redis => {
   return client;
 };
 
+/**
+ * Acquire a distributed lock using Redis SET NX
+ * @param key Lock key
+ * @param ttlSeconds TTL in seconds
+ * @returns true if lock acquired, false otherwise
+ */
+export const acquireLock = async (key: string, ttlSeconds: number): Promise<boolean> => {
+  try {
+    const redis = getRedisClient();
+    const result = await redis.set(`lock:${key}`, 'locked', 'EX', ttlSeconds, 'NX');
+    return result === 'OK';
+  } catch (error) {
+    logger.error(`Error acquiring lock for ${key}:`, error);
+    return false;
+  }
+};
+
+/**
+ * Release a distributed lock
+ * @param key Lock key
+ */
+export const releaseLock = async (key: string): Promise<void> => {
+  try {
+    const redis = getRedisClient();
+    await redis.del(`lock:${key}`);
+  } catch (error) {
+    logger.error(`Error releasing lock for ${key}:`, error);
+  }
+};
+
 // Usage
 // import { getRedisClient } from '../../shared/redis';
 
