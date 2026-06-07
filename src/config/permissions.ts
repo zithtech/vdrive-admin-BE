@@ -110,6 +110,13 @@ export const VDrivePermissions = {
   // ─── Audit & Logs ────────────────────────────────────────────────
   AUDIT_LOG_READ: 'audit_log.read',
   AUDIT_LOG_MANAGE: 'audit_log.manage', // retention, export, sensitive data redaction
+
+  // ─── Support Tickets ─────────────────────────────────────────────
+  SUPPORT_TICKET_CREATE: 'support_ticket.create',
+  SUPPORT_TICKET_READ: 'support_ticket.read',
+  SUPPORT_TICKET_UPDATE: 'support_ticket.update',
+  SUPPORT_TICKET_DELETE: 'support_ticket.delete',
+  SUPPORT_TICKET_MANAGE: 'support_ticket.manage',
 } as const;
 
 export type VDrivePermission = (typeof VDrivePermissions)[keyof typeof VDrivePermissions];
@@ -231,15 +238,15 @@ export const VDRIVE_MODULES = {
       VDrivePermissions.NOTIFICATION_MANAGE,
     ],
   },
-  settings: {
-    label: 'Settings',
-    icon: 'settings',
-    permissions: [
-      VDrivePermissions.SETTINGS_READ,
-      VDrivePermissions.SETTINGS_UPDATE,
-      VDrivePermissions.SETTINGS_MANAGE,
-    ],
-  },
+  // settings: {
+  //   label: 'Settings',
+  //   icon: 'settings',
+  //   permissions: [
+  //     VDrivePermissions.SETTINGS_READ,
+  //     VDrivePermissions.SETTINGS_UPDATE,
+  //     VDrivePermissions.SETTINGS_MANAGE,
+  //   ],
+  // },
   roles: {
     label: 'Roles & Permissions',
     icon: 'shield-check',
@@ -251,16 +258,27 @@ export const VDRIVE_MODULES = {
       VDrivePermissions.ROLE_ASSIGN,
     ],
   },
-  reports: {
-    label: 'Reports & Analytics',
-    icon: 'chart-bar',
-    permissions: [VDrivePermissions.REPORT_READ, VDrivePermissions.REPORT_MANAGE],
+  support_tickets: {
+    label: 'Support Tickets',
+    icon: 'support',
+    permissions: [
+      VDrivePermissions.SUPPORT_TICKET_CREATE,
+      VDrivePermissions.SUPPORT_TICKET_READ,
+      VDrivePermissions.SUPPORT_TICKET_UPDATE,
+      VDrivePermissions.SUPPORT_TICKET_DELETE,
+      VDrivePermissions.SUPPORT_TICKET_MANAGE,
+    ],
   },
-  audit: {
-    label: 'Audit & Logs',
-    icon: 'history',
-    permissions: [VDrivePermissions.AUDIT_LOG_READ, VDrivePermissions.AUDIT_LOG_MANAGE],
-  },
+  // reports: {
+  //   label: 'Reports & Analytics',
+  //   icon: 'chart-bar',
+  //   permissions: [VDrivePermissions.REPORT_READ, VDrivePermissions.REPORT_MANAGE],
+  // },
+  // audit: {
+  //   label: 'Audit & Logs',
+  //   icon: 'history',
+  //   permissions: [VDrivePermissions.AUDIT_LOG_READ, VDrivePermissions.AUDIT_LOG_MANAGE],
+  // },
 } as const;
 
 export type VDriveModuleKey = keyof typeof VDRIVE_MODULES;
@@ -353,6 +371,13 @@ export const VDRIVE_PERMISSIONS_BY_RESOURCE: Record<string, VDrivePermission[]> 
   ],
   reports: [VDrivePermissions.REPORT_READ, VDrivePermissions.REPORT_MANAGE],
   audit: [VDrivePermissions.AUDIT_LOG_READ, VDrivePermissions.AUDIT_LOG_MANAGE],
+  support_tickets: [
+    VDrivePermissions.SUPPORT_TICKET_CREATE,
+    VDrivePermissions.SUPPORT_TICKET_READ,
+    VDrivePermissions.SUPPORT_TICKET_UPDATE,
+    VDrivePermissions.SUPPORT_TICKET_DELETE,
+    VDrivePermissions.SUPPORT_TICKET_MANAGE,
+  ],
 };
 
 /** Flat list of all permissions — used for seeding and validation. */
@@ -470,6 +495,13 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, VDrivePermission[]> = {
     VDrivePermissions.ADMIN_CREATE,
     VDrivePermissions.ADMIN_UPDATE,
     VDrivePermissions.ADMIN_DELETE,
+
+    // Support Tickets
+    VDrivePermissions.SUPPORT_TICKET_CREATE,
+    VDrivePermissions.SUPPORT_TICKET_READ,
+    VDrivePermissions.SUPPORT_TICKET_UPDATE,
+    VDrivePermissions.SUPPORT_TICKET_DELETE,
+    VDrivePermissions.SUPPORT_TICKET_MANAGE,
   ],
 
   // ─── USER ────────────────────────────────────────────────────────
@@ -508,5 +540,8 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, VDrivePermission[]> = {
 
     // Settings
     VDrivePermissions.SETTINGS_READ,
+
+    // Support Tickets
+    VDrivePermissions.SUPPORT_TICKET_READ,
   ],
 };
