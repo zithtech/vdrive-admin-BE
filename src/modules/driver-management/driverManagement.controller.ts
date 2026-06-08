@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { DriverManagementRepository } from './driverManagement.repository';
 import { notifyUserBackend } from '../../services/socket';
+import { extractDocumentData } from '../../services/ocrService';
 import { forwardRequest } from '../../shared/forwardRequest';
 import config from '../../config';
 
@@ -151,6 +152,36 @@ export const DriverManagementController = {
         success: true,
         message: 'Document status updated successfully',
         data: updatedDriver
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async runOCR(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { document_id } = req.params;
+      const { image_url, document_type } = req.body;
+
+      console.log(`[OCR Controller] Received OCR request for doc: ${document_id}, type: ${document_type}`);
+      console.log(`[OCR Controller] Image URL:`, typeof image_url, image_url);
+
+      if (!image_url || !document_type) {
+        return res.status(400).json({ success: false, message: 'image_url and document_type are required' });
+      }
+
+      // Run Google Cloud Vision OCR
+      const extractedData = await extractDocumentData(image_url, document_type);
+
+      // Save to database
+      if (extractedData) {
+        await DriverManagementRepository.updateDocumentOCRData(document_id, extractedData);
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'OCR completed successfully',
+        data: extractedData
       });
     } catch (error) {
       next(error);

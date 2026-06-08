@@ -10,9 +10,11 @@ const router = Router();
 router.get('/', RechargePlanController.getRechargePlans);
 router.get('/stats', RechargePlanController.getSubscriptionStats);
 router.get('/active-subscriptions', RechargePlanController.getAllActiveDriverSubscriptions);
+router.get('/expired-subscriptions', RechargePlanController.getAllExpiredDriverSubscriptions);
 router.get('/driver-history/:driverId', RechargePlanController.getDriverSubscriptionHistory);
 
-
+router.get('/payments', RechargePlanController.getPayments);
+router.get('/payments/driver/:driverId', RechargePlanController.getDriverPayments);
 router.get(
   '/:id',
   validateParams(RechargePlanValidation.idValidation),
@@ -57,6 +59,7 @@ router.delete(
 );
 
 router.post('/notify-expiring', RechargePlanController.notifyExpiringSubscribers);
+router.post('/notify-all-expired', RechargePlanController.notifyAllExpiredSubscribers);
 router.post('/notify-individual', RechargePlanController.notifyIndividualSubscriber);
 
 export default router;
