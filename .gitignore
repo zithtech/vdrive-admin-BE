@@ -13,4 +13,4 @@ error.log
 combined.log
 
 # Test Files
-coverage/
+coverage/google-vision-key.json
