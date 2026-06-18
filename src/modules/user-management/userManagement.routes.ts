@@ -1,40 +1,41 @@
 import { Router } from 'express';
 import { UserManagementController } from './userManagement.controller';
 import isAuthenticated from '../../shared/authentication';
+import { requirePermission } from '../../shared/authorization';
 
 const router = Router();
 
 // Apply admin authentication to all routes
 router.use(isAuthenticated);
 
-router.get('/', UserManagementController.getUsers);
+router.get('/',requirePermission('customers', 'read'), UserManagementController.getUsers);
 
-router.get('/:id', UserManagementController.getUserById);
+router.get('/:id',requirePermission('customers', 'read'), UserManagementController.getUserById);
 
-router.post('/', UserManagementController.createUser);
+router.post('/',requirePermission('customers', 'create'), UserManagementController.createUser);
 
-router.patch('/:id', UserManagementController.updateUser);
+router.patch('/:id',requirePermission('customers', 'update'), UserManagementController.updateUser);
 
-router.patch('/block/:id', UserManagementController.blockUser);
+router.patch('/block/:id',requirePermission('customers', 'update'), UserManagementController.blockUser);
 
-router.patch('/unblock/:id', UserManagementController.unblockUser);
+router.patch('/unblock/:id',requirePermission('customers', 'update'), UserManagementController.unblockUser);
 
-router.patch('/disable/:id', UserManagementController.disableUser);
+router.patch('/disable/:id',requirePermission('customers', 'update'), UserManagementController.disableUser);
 
-router.patch('/enable/:id', UserManagementController.enableUser);
+router.patch('/enable/:id',requirePermission('customers', 'update'), UserManagementController.enableUser);
 
 router.patch(
     '/suspend/:id',
-    UserManagementController.suspendUser
+    requirePermission('customers', 'update'),UserManagementController.suspendUser
 );
 
 router.patch(
     '/unsuspend/:id',
-    UserManagementController.unsuspendUser
+    requirePermission('customers', 'update'),UserManagementController.unsuspendUser
 );
 
-router.get('/search', UserManagementController.searchUsers);
+router.get('/search',requirePermission('customers', 'read'), UserManagementController.searchUsers);
 
-router.delete('/:id', UserManagementController.deleteUser);
+router.delete('/:id',requirePermission('customers', 'delete'), UserManagementController.deleteUser);
 
 export default router;

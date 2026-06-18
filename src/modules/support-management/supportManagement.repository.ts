@@ -209,4 +209,120 @@ export const SupportManagementRepository = {
     const result = await query(sql, [ticketId]);
     return result.rows[0]?.fcm_token || null;
   },
+
+
+   /* ======================== USER-DRIVER-API Tickets ======================== */
+
+  async createUserTicket(data: any): Promise<any> {
+    const sql = `
+      INSERT INTO user_support_tickets (
+        user_id, subject, description, priority, category, status,
+        channel, severity, source, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+      RETURNING *
+    `;
+    const result = await query(sql, [
+      data.user_id, data.subject, data.description, data.priority, data.category,
+      data.status, data.channel, data.severity, data.source,
+    ]);
+    return result.rows[0];
+  },
+
+  async findTicketsByUserId(userId: string): Promise<any[]> {
+    const sql = `
+      SELECT * FROM user_support_tickets
+      WHERE user_id = $1
+      ORDER BY created_at DESC
+    `;
+    const result = await query(sql, [userId]);
+    return result.rows;
+  },
+
+  async findAllUserTickets(): Promise<any[]> {
+    const sql = `
+      SELECT st.*, u.full_name as user_name, u.phone_number as user_phone
+      FROM user_support_tickets st
+      LEFT JOIN users u ON u.id = st.user_id
+      ORDER BY st.created_at DESC
+    `;
+    const result = await query(sql);
+    return result.rows;
+  },
+
+  async getUserFcmToken(userId: string): Promise<string | null> {
+    const sql = `
+      SELECT fcm_token FROM users WHERE id = $1
+    `;
+    const result = await query(sql, [userId]);
+    return result.rows[0]?.fcm_token || null;
+  },
+
+  async updateUserTicketStatus(ticketId: string, status: string, adminNotes?: string): Promise<any | null> {
+    const sql = `
+      UPDATE user_support_tickets
+      SET status = $2, admin_notes = COALESCE($3, admin_notes),
+          resolved_at = ${status === 'resolved' ? 'CURRENT_TIMESTAMP' : 'resolved_at'},
+          updated_at = NOW()
+      WHERE id = $1
+      RETURNING *
+    `;
+    const result = await query(sql, [ticketId, status, adminNotes || null]);
+    return result.rows[0] || null;
+  },
+
+  async getUserTicketById(ticketId: string): Promise<any | null> {
+    const sql = `
+      SELECT st.*, u.full_name as user_name, u.phone_number as user_phone
+      FROM user_support_tickets st
+      LEFT JOIN users u ON u.id = st.user_id
+      WHERE st.id = $1
+    `;
+    const result = await query(sql, [ticketId]);
+    return result.rows[0] || null;
+  },
+
+  async saveUserMessage(data: {
+    ticket_id: string;
+    sender_id: string;
+    sender_type: string;
+    message: string;
+    attachments?: string[];
+  }): Promise<any> {
+    const attachmentsJson = data.attachments?.length ? JSON.stringify(data.attachments) : null;
+
+    const sql = `
+      INSERT INTO user_support_messages (
+        ticket_id, sender_id, sender_type, message, attachments
+      ) VALUES ($1, $2, $3, $4, $5)
+      RETURNING *
+    `;
+
+    const result = await query(sql, [
+      data.ticket_id, data.sender_id, data.sender_type, data.message, attachmentsJson
+    ]);
+
+    return result.rows[0];
+  },
+
+  async findUserMessagesByTicketId(ticketId: string): Promise<any[]> {
+    const sql = `
+      SELECT * FROM user_support_messages
+      WHERE ticket_id = $1
+      ORDER BY created_at ASC
+    `;
+    const result = await query(sql, [ticketId]);
+    return result.rows;
+  },
+
+  async getUserFcmTokenByTicketId(ticketId: string): Promise<string | null> {
+    const sql = `
+      SELECT u.fcm_token 
+      FROM user_support_tickets st
+      JOIN users u ON u.id = st.user_id
+      WHERE st.id = $1
+    `;
+    const result = await query(sql, [ticketId]);
+    return result.rows[0]?.fcm_token || null;
+  },
+
 };

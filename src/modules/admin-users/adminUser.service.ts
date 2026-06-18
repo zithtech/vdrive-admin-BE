@@ -20,7 +20,8 @@ export const AdminUserService = {
     email: string;
     password: string;
     contact?: string;
-    role?: 'admin' | 'super_admin';
+    role?: string;
+    role_id?: string;
   }): Promise<PublicAdminUser> {
     const existing = await AdminUserRepository.findByEmail(data.email);
     if (existing) {
@@ -33,6 +34,7 @@ export const AdminUserService = {
       password: hashedPassword,
       contact: data.contact || null,
       role: data.role ?? 'admin',
+      role_id: data.role_id,
     });
   },
 
@@ -42,7 +44,8 @@ export const AdminUserService = {
       name: string;
       email: string;
       contact: string;
-      role: 'admin' | 'super_admin';
+      role: string;
+      role_id: string | null;
     }>
   ): Promise<PublicAdminUser> {
     const existing = await AdminUserRepository.findById(id);

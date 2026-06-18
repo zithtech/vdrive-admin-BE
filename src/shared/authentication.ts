@@ -1,8 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt, { JwtPayload } from 'jsonwebtoken';
+import { AuthRepository } from '../modules/auth/auth.repository';
+import { transformPermissions } from '../utilities/permission.helper';
 
 interface AuthRequest extends Request {
-  user?: { id: string; role: string };
+  user?: { id: string; role: string; permissions?: any };
 }
 
 const isAuthenticated = async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -34,7 +36,20 @@ const isAuthenticated = async (req: AuthRequest, res: Response, next: NextFuncti
       });
     }
 
-    req.user = { id: decoded.id, role: decoded.role };
+    let permissions;
+    if (decoded.role === 'super_admin') {
+      const allPermissions = await AuthRepository.getAllSystemPermissions();
+      permissions = transformPermissions(allPermissions);
+    } else {
+      const rawPermissions = await AuthRepository.getUserPermissions(decoded.id);
+      permissions = transformPermissions(rawPermissions);
+    }
+
+    req.user = {
+      id: decoded.id,
+      role: decoded.role,
+      permissions,
+    };
 
     next();
   } catch (err: any) {
