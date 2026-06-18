@@ -5,6 +5,7 @@ import jwt, { JwtPayload, SignOptions } from 'jsonwebtoken';
 import config from '../../config';
 import { sendMail } from '../../shared/sendEmail';
 import { AdminUser } from '../admin-users/adminUser.model';
+import { transformPermissions, NestedPermissions } from '../../utilities/permission.helper';
 
 export const AuthService = {
   generateResetToken(): string {
@@ -132,7 +133,28 @@ export const AuthService = {
     return true;
   },
 
-  async getMe(userId: string): Promise<AdminUser | null> {
-    return await AuthRepository.getUserProfileById(userId);
+  async getMe(userId: string): Promise<any> {
+    const userProfile = await AuthRepository.getUserProfileById(userId);
+    if (!userProfile) {
+      return null;
+    }
+
+    let permissions: NestedPermissions = {};
+    if (userProfile.role === 'super_admin') {
+      const allPermissions = await AuthRepository.getAllSystemPermissions();
+      permissions = transformPermissions(allPermissions);
+    } else {
+      const rawPermissions = await AuthRepository.getUserPermissions(userId);
+      permissions = transformPermissions(rawPermissions);
+    }
+
+    return {
+      id: userProfile.id,
+      name: userProfile.name,
+      email: userProfile.email,
+      contact: userProfile.contact,
+      role: userProfile.role,
+      permissions,
+    };
   },
 };

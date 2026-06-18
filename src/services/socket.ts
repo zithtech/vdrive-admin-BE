@@ -121,6 +121,14 @@ export const initSocket = (httpServer: HttpServer): Server => {
       }
     });
 
+        socket.on('USER_AGENT_REQUESTED', (ticketData) => {
+      logger.info('New agent request received from User Backend:', ticketData);
+      if (io) {
+        // Notify all admins about the new ticket
+        io.to('admin').emit('ADMIN_SUPPORT_USER_TICKET_ALERT', ticketData);
+      }
+    });
+
     socket.on('SUPPORT_TICKET_CLOSED', (data) => {
       logger.info('Support ticket closed by driver:', data);
       if (io) {
@@ -128,6 +136,15 @@ export const initSocket = (httpServer: HttpServer): Server => {
         // Notify the specific ticket room and all admins
         io.to(`support_ticket_${ticketId}`).emit('TICKET_STATUS_UPDATE', { ticketId, status: 'closed' });
         io.to('admin').emit('ADMIN_SUPPORT_TICKET_CLOSED', data);
+      }
+    });
+    socket.on('USER_SUPPORT_TICKET_CLOSED', (data) => {
+      logger.info('support ticket closed by User:', data);
+      if (io) {
+        const { ticketId } = data;
+        // Notify the specific ticket room and all admins
+        io.to(`support_ticket_${ticketId}`).emit('TICKET_STATUS_UPDATE', { ticketId, status: 'closed' });
+        io.to('admin').emit('ADMIN_USER_SUPPORT_TICKET_CLOSED', data);
       }
     });
 
@@ -139,6 +156,16 @@ export const initSocket = (httpServer: HttpServer): Server => {
         io.to(`support_ticket_${ticketId}`).emit('receiveSupportMessage', messageData);
         // Also notify general admin room for a sidebar update/notification
         io.to('admin').emit('ADMIN_SUPPORT_MESSAGE_NOTIFICATION', messageData);
+      }
+    });
+    socket.on('SUPPORT_MESSAGE_FROM_USER', (messageData) => {
+      logger.info('New support message from User received:', messageData);
+      if (io) {
+        const { ticketId } = messageData;
+        // Broadcast to all admins in the ticket room
+        io.to(`support_ticket_${ticketId}`).emit('receiveSupportMessage', messageData);
+        // Also notify general admin room for a sidebar update/notification
+        io.to('admin').emit('ADMIN_USER_SUPPORT_MESSAGE_NOTIFICATION', messageData);
       }
     });
 
@@ -211,6 +238,7 @@ export const initSocket = (httpServer: HttpServer): Server => {
     const userName = socket.data.user?.name || 'Unknown';
     const userId = socket.data.user?.id || 'Unknown';
 
+
     // Add to user map
     if (userId !== 'Unknown') {
       if (!userSocketMap.has(userId)) {
@@ -251,6 +279,7 @@ export const initSocket = (httpServer: HttpServer): Server => {
     });
 
     socket.on('sendSupportMessage', async (data: { ticketId: string; senderId: string; senderType: string; message: string }) => {
+      console.log('Received support message via socket:', data);
       const { ticketId, senderId, senderType, message } = data;
       const room = `support_ticket_${ticketId}`;
 

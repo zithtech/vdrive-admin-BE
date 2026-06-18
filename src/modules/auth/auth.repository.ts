@@ -47,4 +47,22 @@ export const AuthRepository = {
     );
     return result.rows[0] || null;
   },
+
+  async getUserPermissions(userId: string): Promise<{ module: string; action: string }[]> {
+    const sql = `
+      SELECT p.module, p.action 
+      FROM admin_users u
+      JOIN roles r ON u.role_id = r.id
+      JOIN role_permissions rp ON rp.role_id = r.id
+      JOIN permissions p ON p.id = rp.permission_id
+      WHERE u.id = $1 AND u.is_deleted = false
+    `;
+    const result = await query(sql, [userId]);
+    return result.rows;
+  },
+
+  async getAllSystemPermissions(): Promise<{ module: string; action: string }[]> {
+    const result = await query('SELECT module, action FROM permissions');
+    return result.rows;
+  },
 };

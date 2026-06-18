@@ -28,8 +28,11 @@ export const AdminUserValidation = {
       'string.pattern.base': 'Contact must be a valid phone number',
       'string.max': 'Contact must not exceed 15 characters',
     }),
-    role: Joi.string().valid('admin', 'super_admin').optional().default('admin').messages({
-      'any.only': 'Role must be either admin or super_admin',
+    role: Joi.string().optional().default('admin').messages({
+      'string.empty': 'Role is required',
+    }),
+    role_id: Joi.string().uuid().optional().allow(null).messages({
+      'string.guid': 'Role ID must be a valid UUID',
     }),
   }),
 
@@ -45,8 +48,11 @@ export const AdminUserValidation = {
       'string.pattern.base': 'Contact must be a valid phone number',
       'string.max': 'Contact must not exceed 15 characters',
     }),
-    role: Joi.string().valid('admin', 'super_admin').optional().messages({
-      'any.only': 'Role must be either admin or super_admin',
+    role: Joi.string().optional().messages({
+      'string.empty': 'Role cannot be empty',
+    }),
+    role_id: Joi.string().uuid().optional().allow(null).messages({
+      'string.guid': 'Role ID must be a valid UUID',
     }),
   })
     .min(1)

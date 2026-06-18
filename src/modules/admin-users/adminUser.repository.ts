@@ -1,7 +1,7 @@
 import { query } from '../../shared/database';
 import { AdminUser, PublicAdminUser } from './adminUser.model';
 
-const SAFE_COLUMNS = 'id, name, email, contact, role, created_at, updated_at, deleted_at, is_deleted';
+const SAFE_COLUMNS = 'id, name, email, contact, role, role_id, created_at, updated_at, deleted_at, is_deleted';
 
 export const AdminUserRepository = {
   async findAll(): Promise<PublicAdminUser[]> {
@@ -32,13 +32,14 @@ export const AdminUserRepository = {
     password: string;
     email: string;
     contact: string | null;
-    role: 'admin' | 'super_admin';
+    role: string;
+    role_id?: string | null;
   }): Promise<PublicAdminUser> {
     const result = await query(
-      `INSERT INTO admin_users (name, password, email, contact, role, is_deleted)
-       VALUES ($1, $2, $3, $4, $5, false)
+      `INSERT INTO admin_users (name, password, email, contact, role, role_id, is_deleted)
+       VALUES ($1, $2, $3, $4, $5, $6, false)
        RETURNING ${SAFE_COLUMNS}`,
-      [data.name, data.password, data.email, data.contact, data.role]
+      [data.name, data.password, data.email, data.contact, data.role, data.role_id || null]
     );
     return result.rows[0];
   },
@@ -49,7 +50,8 @@ export const AdminUserRepository = {
       name: string;
       email: string;
       contact: string | null;
-      role: 'admin' | 'super_admin';
+      role: string;
+      role_id: string | null;
     }>
   ): Promise<PublicAdminUser | null> {
     const fields: string[] = [];
@@ -71,6 +73,10 @@ export const AdminUserRepository = {
     if (data.role !== undefined) {
       fields.push(`role = $${index++}`);
       values.push(data.role);
+    }
+    if (data.role_id !== undefined) {
+      fields.push(`role_id = $${index++}`);
+      values.push(data.role_id);
     }
 
     if (fields.length === 0) {
