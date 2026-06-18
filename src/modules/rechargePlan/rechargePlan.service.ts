@@ -87,6 +87,10 @@ export const RechargePlanService = {
     return await RechargePlanRepository.getActiveSubscriptions();
   },
 
+  async getExpiredSubscriptions() {
+    return await RechargePlanRepository.getExpiredSubscriptions();
+  },
+
   async getSubscriptionStats() {
     return await RechargePlanRepository.getSubscriptionStats();
   },
@@ -136,18 +140,50 @@ export const RechargePlanService = {
         });
         sentCount++;
       } catch (err: any) {
-        logger.error(`Failed to notify driver ${driver.driver_id}: ${err.message}`);
+        logger.error(`Failed to notify driver ${driver.driver_id}: ${err.response?.data?.message || err.message}`);
       }
     }
 
     return { sentCount, totalActive: allActiveDrivers.length };
   },
 
+  async notifyAllExpiredSubscribers() {
+    const allExpiredDrivers = await RechargePlanRepository.getAllExpiredSubscribersDetailed();
+    
+    if (allExpiredDrivers.length === 0) {
+      return { sentCount: 0, message: 'No expired subscriptions found' };
+    }
+
+    let sentCount = 0;
+    const notificationUrl = `${config.userDriverApiUrl}/api/notifications/send`;
+
+    for (const driver of allExpiredDrivers) {
+      try {
+        await axios.post(notificationUrl, {
+          driverId: driver.driver_id,
+          title: '❌ Subscription Expired',
+          body: `Hi ${driver.driver_name}, your subscription has expired. Please recharge immediately to resume receiving rides.`,
+          data: {
+            type: 'PLAN_EXPIRY_REMINDER',
+            expiryDate: driver.expiry_date
+          }
+        }, {
+          headers: { 'x-api-key': config.internalServiceApiKey }
+        });
+        sentCount++;
+      } catch (err: any) {
+        logger.error(`Failed to notify expired driver ${driver.driver_id}: ${err.response?.data?.message || err.message}`);
+      }
+    }
+
+    return { sentCount, totalExpired: allExpiredDrivers.length };
+  },
+
   async notifyIndividualSubscriber(driverId: string) {
-    const subscription = await RechargePlanRepository.getDriverActiveSubscription(driverId);
+    const subscription = await RechargePlanRepository.getDriverLatestSubscription(driverId);
     
     if (!subscription) {
-      throw new Error('No active subscription found for this driver');
+      throw new Error('No subscription history found for this driver');
     }
 
     const notificationUrl = `${config.userDriverApiUrl}/api/notifications/send`;
@@ -162,8 +198,8 @@ export const RechargePlanService = {
 
     await axios.post(notificationUrl, {
       driverId: subscription.driver_id,
-      title: '📋 Subscription Status',
-      body: `Hi ${subscription.driver_name}, you are on the ${subscription.plan_name} plan. It ${daysLeftText} (${new Date(subscription.expiry_date).toLocaleDateString()}).`,
+      title: daysLeft < 0 ? '❌ Subscription Expired' : '📋 Subscription Status',
+      body: `Hi ${subscription.driver_name}, you are on the ${subscription.plan_name} plan. It ${daysLeftText} (${new Date(subscription.expiry_date).toLocaleDateString()}). ${daysLeft < 0 ? 'Please recharge immediately.' : ''}`,
       data: {
         type: 'PLAN_EXPIRY_REMINDER',
         expiryDate: subscription.expiry_date
@@ -227,5 +263,13 @@ export const RechargePlanService = {
 
     return { sentCount, scannedCount: allDrivers.length };
   },
+
+  async getPayments(page = 1, limit = 10) {
+    return await RechargePlanRepository.getPayments(page, limit);
+  },
+
+  async getDriverPayments(driverId: string) {
+    return await RechargePlanRepository.getDriverPayments(driverId);
+  }
 };
 

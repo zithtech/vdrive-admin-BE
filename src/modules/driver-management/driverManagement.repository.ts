@@ -101,7 +101,9 @@ export class DriverManagementRepository {
            'document_number', dd.document_number,
            'document_url', dd.document_url,
            'license_status', dd.status,
-           'expiry_date', dd.expiry_date
+           'expiry_date', dd.expiry_date,
+           'extracted_data', dd.extracted_data,
+           'rejection_reason', dd.rejection_reason
          ))
          FROM driver_documents dd
          WHERE dd.driver_id = d.id
@@ -172,6 +174,8 @@ export class DriverManagementRepository {
         document_url: urlObj, // Return the raw object (which might have .front and .back)
         license_status: doc.status || 'pending',
         expiry_date: doc.expiry_date,
+        extracted_data: doc.extracted_data,
+        rejection_reason: doc.rejection_reason
       };
     });
 
@@ -179,13 +183,16 @@ export class DriverManagementRepository {
   }
 
   static async updateDocumentStatus(documentId: string, status: string, reason?: string) {
-    const result = await query(
-      'UPDATE driver_documents SET status = $1, rejection_reason = $2, verified_at = NOW() WHERE id = $3 RETURNING *',
-      [status, reason || null, documentId]
-    );
-
-    // Record history
-    if (result.rows[0]) {
+    try {
+      const result = await query(
+        'UPDATE driver_documents SET status = $1, rejection_reason = $2, verified_at = NOW() WHERE id = $3 RETURNING *',
+        [status, reason || null, documentId]
+      );
+      
+      if (result.rows.length === 0) {
+        return null;
+      }
+      
       const doc = result.rows[0];
       await query(
         'INSERT INTO driver_document_history (document_id, status, reason) VALUES ($1, $2, $3)',
@@ -194,9 +201,27 @@ export class DriverManagementRepository {
       
       // Sync overall driver KYC status
       await this.syncDriverKYCStatus(doc.driver_id);
+      
+      return doc;
+    } catch (error) {
+      throw error;
     }
+  }
 
-    return result.rows[0];
+  static async updateDocumentOCRData(documentId: string, extractedData: any) {
+    try {
+      const result = await query(
+        `UPDATE driver_documents SET extracted_data = $1 WHERE id = $2 RETURNING *`,
+        [JSON.stringify(extractedData), documentId]
+      );
+      return result.rows[0];
+    } catch (error: any) {
+      if (error.code === '42703') { // Column does not exist
+        console.error('extracted_data column missing in driver_documents table.');
+        return null;
+      }
+      throw error;
+    }
   }
 
   static async syncDriverKYCStatus(driverId: string) {
@@ -294,7 +319,9 @@ export class DriverManagementRepository {
            'document_number', dd.document_number,
            'document_url', dd.document_url,
            'license_status', dd.status,
-           'expiry_date', dd.expiry_date
+           'expiry_date', dd.expiry_date,
+           'extracted_data', dd.extracted_data,
+           'rejection_reason', dd.rejection_reason
          ))
          FROM driver_documents dd
          WHERE dd.driver_id = d.id

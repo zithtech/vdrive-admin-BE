@@ -30,6 +30,7 @@ router.post('/:id/go-offline', DriverManagementController.goOffline);
 
 router.patch('/documents/verify/:document_id', requirePermission('drivers', 'update'), DriverManagementController.verifyDocument);
 router.patch('/documents/bulk-verify/:id', requirePermission('drivers', 'update'), DriverManagementController.bulkVerifyDocuments);
+router.post('/documents/:document_id/ocr', requirePermission('drivers', 'update'), DriverManagementController.runOCR);
 router.patch('/:id', requirePermission('drivers', 'update'), DriverManagementController.updateDriver);
 
 export default router;

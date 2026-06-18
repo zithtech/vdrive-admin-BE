@@ -94,6 +94,15 @@ export const RechargePlanController = {
     }
   },
 
+  async getAllExpiredDriverSubscriptions(req: Request, res: Response, next: NextFunction) {
+    try {
+      const subscriptions = await RechargePlanService.getExpiredSubscriptions();
+      return successResponse(res, 200, "Expired subscriptions fetched successfully", subscriptions);
+    } catch (err) {
+      next(err);
+    }
+  },
+
   async getSubscriptionStats(req: Request, res: Response, next: NextFunction) {
     try {
       const stats = await RechargePlanService.getSubscriptionStats();
@@ -121,12 +130,42 @@ export const RechargePlanController = {
       next(err);
     }
   },
+
+  async notifyAllExpiredSubscribers(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await RechargePlanService.notifyAllExpiredSubscribers();
+      return successResponse(res, 200, "Expired notifications processed", result);
+    } catch (err) {
+      next(err);
+    }
+  },
   
   async notifyIndividualSubscriber(req: Request, res: Response, next: NextFunction) {
     try {
       const { driverId } = req.body;
       const result = await RechargePlanService.notifyIndividualSubscriber(driverId);
       return successResponse(res, 200, "Individual notification processed", result);
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async getPayments(req: Request, res: Response, next: NextFunction) {
+    try {
+      const page = Number(req.query.page) || 1;
+      const limit = Number(req.query.limit) || 10;
+      const result = await RechargePlanService.getPayments(page, limit);
+      return successResponse(res, 200, "Payments fetched successfully", result);
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async getDriverPayments(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { driverId } = req.params;
+      const payments = await RechargePlanService.getDriverPayments(driverId);
+      return successResponse(res, 200, "Driver payments fetched successfully", payments);
     } catch (err) {
       next(err);
     }

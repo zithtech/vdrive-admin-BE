@@ -8,12 +8,14 @@ import { requirePermission } from '../../shared/authorization';
 
 const router = Router();
 
-router.get('/',requirePermission('recharge', 'read'), RechargePlanController.getRechargePlans);
-router.get('/stats',requirePermission('recharge', 'read'), RechargePlanController.getSubscriptionStats);
-router.get('/active-subscriptions',requirePermission('recharge', 'read'), RechargePlanController.getAllActiveDriverSubscriptions);
-router.get('/driver-history/:driverId',requirePermission('recharge', 'read'), RechargePlanController.getDriverSubscriptionHistory);
+router.get('/', requirePermission('recharge', 'read'), RechargePlanController.getRechargePlans);
+router.get('/stats', requirePermission('recharge', 'read'), RechargePlanController.getSubscriptionStats);
+router.get('/active-subscriptions', requirePermission('recharge', 'read'), RechargePlanController.getAllActiveDriverSubscriptions);
+router.get('/expired-subscriptions', requirePermission('recharge', 'read'), RechargePlanController.getAllExpiredDriverSubscriptions);
+router.get('/driver-history/:driverId', requirePermission('recharge', 'read'), RechargePlanController.getDriverSubscriptionHistory);
 
-
+router.get('/payments', requirePermission('recharge', 'read'), RechargePlanController.getPayments);
+router.get('/payments/driver/:driverId', requirePermission('recharge', 'read'), RechargePlanController.getDriverPayments);
 router.get(
   '/:id',
   requirePermission('recharge', 'read'),
@@ -64,7 +66,7 @@ router.delete(
 );
 
 router.post('/notify-expiring', requirePermission('recharge', 'update'), RechargePlanController.notifyExpiringSubscribers);
+router.post('/notify-all-expired', requirePermission('recharge', 'update'), RechargePlanController.notifyAllExpiredSubscribers);
 router.post('/notify-individual', requirePermission('recharge', 'update'), RechargePlanController.notifyIndividualSubscriber);
 
 export default router;
-
