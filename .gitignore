@@ -12,5 +12,6 @@ dist/
 error.log
 combined.log
 
-# Test Files
+# Google Cloud service-account key (never commit)
+google-vision-key.json
 coverage/google-vision-key.json
