@@ -61,8 +61,9 @@ const config: Config = {
     refreshExpiresIn: (process.env.JWT_REFRESH_EXPIRES_IN || '7d') as SignOptions['expiresIn'],
   },
   prodURL: process.env.PROD_URL || 'http://localhost:3000',
-  userDriverApiUrl: process.env.USER_DRIVER_API_URL || 'http://localhost:1234',
-  userBackendWebhookUrl: process.env.USER_BACKEND_WEBHOOK_URL || 'http://localhost:5000/webhook/coupon',
+  userDriverApiUrl: process.env.USER_DRIVER_API_URL || 'http://localhost:5006',
+  userBackendWebhookUrl:
+    process.env.USER_BACKEND_WEBHOOK_URL || 'http://localhost:5000/webhook/coupon',
   awsServiceUrl: process.env.AWS_SERVICE_URL || 'http://localhost:1235',
   internalServiceApiKey: process.env.INTERNAL_SERVICE_API_KEY || '',
   internalServiceSecret: process.env.INTERNAL_SERVICE_SECRET || '',

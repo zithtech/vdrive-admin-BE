@@ -1,7 +1,7 @@
 // Test script for Driver Reconciliation Module
 const axios = require('axios');
 
-const BASE_URL = 'http://localhost:1234'; // vdrive-admin-BE server
+const BASE_URL = 'http://localhost:5005'; // vdrive-admin-BE server
 const JWT_TOKEN = 'your-admin-jwt-token-here'; // Replace with actual admin JWT token
 
 async function testDriverReconciliation() {

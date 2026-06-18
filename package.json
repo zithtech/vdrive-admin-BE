@@ -58,9 +58,13 @@
     "ts-jest": "^29.1.2",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.61.1"
   },
   "scripts": {
+    "lint": "eslint .",
+    "format": "prettier --write \"src/**/*.{ts,js,json}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,js,json}\"",
     "test": "jest --coverage",
     "test:watch": "jest --watchAll",
     "test:unit": "jest --testPathPattern=__tests__/unit",
