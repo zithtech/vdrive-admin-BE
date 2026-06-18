@@ -95,7 +95,7 @@ export const CouponService = {
     return {
       coupon_id: coupon.id,
       discount_amount: discount,
-      final_amount: tripAmount - discount
+      final_amount: tripAmount - discount,
     };
   },
 
@@ -105,5 +105,5 @@ export const CouponService = {
 
   async notifyUsers(couponId: string, target: string, userId?: string | string[]) {
     return CouponRepository.triggerNotification(couponId, target, userId);
-  }
+  },
 };

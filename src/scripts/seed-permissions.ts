@@ -7,7 +7,10 @@ import { connectDatabase, query, pool } from '../shared/database';
 dotenv.config();
 
 // Paths
-const frontendConfigPath = path.resolve(__dirname, '../../../vDrive-admin/src/config/permissions.ts');
+const frontendConfigPath = path.resolve(
+  __dirname,
+  '../../../vDrive-admin/src/config/permissions.ts'
+);
 const backendConfigPath = path.resolve(__dirname, '../config/permissions.ts');
 
 function copyConfigFromFrontend() {
@@ -15,13 +18,13 @@ function copyConfigFromFrontend() {
     if (fs.existsSync(frontendConfigPath)) {
       console.log(`🔍 Found frontend permissions configuration at: ${frontendConfigPath}`);
       const content = fs.readFileSync(frontendConfigPath, 'utf8');
-      
+
       // Ensure target directory exists
       const dir = path.dirname(backendConfigPath);
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
       }
-      
+
       fs.writeFileSync(backendConfigPath, content, 'utf8');
       console.log(`✅ Successfully synced local backend configuration with frontend`);
     } else {
@@ -39,20 +42,24 @@ async function syncPermissionsToDatabase() {
 
   // Import config after potential copy
   // Since TypeScript compilation is run on the fly via ts-node, we can import this file
-  const { VDRIVE_MODULES, VDriveSystemRoles, DEFAULT_ROLE_PERMISSIONS } = require('../config/permissions');
+  const {
+    VDRIVE_MODULES,
+    VDriveSystemRoles,
+    DEFAULT_ROLE_PERMISSIONS,
+  } = require('../config/permissions');
 
   console.log('\n🚀 Starting Permission System Database Synchronization...');
-  
+
   try {
     await connectDatabase();
-    
+
     // Begin transaction
     await query('BEGIN');
-    
+
     // 1. Sync Permissions
     console.log('🔄 Syncing permissions...');
     const dbPermissionsToSync: Array<{ module: string; action: string; description: string }> = [];
-    
+
     for (const [moduleKey, moduleVal] of Object.entries(VDRIVE_MODULES) as [string, any][]) {
       for (const permStr of moduleVal.permissions) {
         const action = permStr.split('.')[1];
@@ -63,7 +70,7 @@ async function syncPermissionsToDatabase() {
         });
       }
     }
-    
+
     for (const perm of dbPermissionsToSync) {
       await query(
         `INSERT INTO permissions (module, action, description)
@@ -113,7 +120,7 @@ async function syncPermissionsToDatabase() {
 
     // 3. Sync Role-Permission Mappings
     console.log('🔄 Syncing role-permission mappings...');
-    
+
     // Fetch all permission records to map (module, action) -> ID
     const allPermsRes = await query('SELECT id, module, action FROM permissions');
     const dbPermMap: Record<string, string> = {};
@@ -121,12 +128,15 @@ async function syncPermissionsToDatabase() {
       dbPermMap[`${row.module}:${row.action}`] = row.id;
     }
 
-    for (const [roleName, permissionsList] of Object.entries(DEFAULT_ROLE_PERMISSIONS) as [string, string[]][]) {
+    for (const [roleName, permissionsList] of Object.entries(DEFAULT_ROLE_PERMISSIONS) as [
+      string,
+      string[],
+    ][]) {
       const roleId = roleMap[roleName];
       if (!roleId) continue;
 
       const targetPermissionIds: string[] = [];
-      
+
       for (const permStr of permissionsList) {
         const dbMapping = mapPermissionToDb(permStr);
         if (dbMapping) {
@@ -161,7 +171,7 @@ async function syncPermissionsToDatabase() {
         // Delete all mappings if role has no permissions
         await query('DELETE FROM role_permissions WHERE role_id = $1', [roleId]);
       }
-      
+
       console.log(`👉 Configured ${targetPermissionIds.length} permissions for role '${roleName}'`);
     }
 

@@ -2,7 +2,6 @@ import { NextFunction, Request, Response } from 'express';
 import { forwardRequest } from '../../shared/forwardRequest';
 import config from '../../config';
 
-
 export const NotificationController = {
   async dispatchNotification(req: Request, res: Response, next: NextFunction) {
     return forwardRequest(req, res, next, config.userDriverApiUrl);
@@ -22,5 +21,5 @@ export const NotificationController = {
 
   async deleteNotificationRecord(req: Request, res: Response, next: NextFunction) {
     return forwardRequest(req, res, next, config.userDriverApiUrl);
-  }
+  },
 };

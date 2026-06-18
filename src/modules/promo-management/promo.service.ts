@@ -28,5 +28,5 @@ export const PromoService = {
 
   async triggerNotification(id: number, target: string, driverId?: string | string[]) {
     return await PromoRepository.triggerNotification(id, target, driverId);
-  }
+  },
 };

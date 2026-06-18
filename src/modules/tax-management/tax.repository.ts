@@ -1,4 +1,3 @@
-
 import { query } from '../../shared/database';
 
 export const TaxRepository = {
@@ -12,9 +11,7 @@ export const TaxRepository = {
       [limit, offset]
     );
 
-    const totalRes = await query(
-      `SELECT COUNT(*) AS total FROM taxes`
-    );
+    const totalRes = await query(`SELECT COUNT(*) AS total FROM taxes`);
 
     return {
       taxes: taxes.rows,
@@ -23,10 +20,7 @@ export const TaxRepository = {
   },
 
   async getById(id: string) {
-    const res = await query(
-      `SELECT * FROM taxes WHERE id=$1`,
-      [id]
-    );
+    const res = await query(`SELECT * FROM taxes WHERE id=$1`, [id]);
     return res.rows[0];
   },
 
@@ -82,16 +76,11 @@ export const TaxRepository = {
   },
 
   async delete(id: string) {
-    await query(
-      `DELETE FROM taxes WHERE id=$1`,
-      [id]
-    );
+    await query(`DELETE FROM taxes WHERE id=$1`, [id]);
   },
 
   async getActiveTaxes() {
-    const res = await query(
-      `SELECT * FROM taxes WHERE is_active = true`
-    );
+    const res = await query(`SELECT * FROM taxes WHERE is_active = true`);
     return res.rows;
   },
 };

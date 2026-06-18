@@ -5,7 +5,7 @@ import config from '../config';
 
 /**
  * Forwards an incoming Express request to another service using Axios.
- * 
+ *
  * @param req - The original Express Request object.
  * @param res - The Express Response object.
  * @param next - The Express NextFunction.
@@ -21,7 +21,7 @@ export const forwardRequest = async (
 ) => {
   try {
     const { body: data } = req;
-    
+
     const axiosConfig: AxiosRequestConfig = {
       method: req.method as Method,
       url: `${url}${customPath || req.originalUrl}`,
@@ -36,16 +36,16 @@ export const forwardRequest = async (
     };
 
     logger.info(`Forwarding Request to URL: ${url} tenant: ${(req as any).tenant || 'N/A'}`);
-    
+
     const response = await axios(axiosConfig);
-    
+
     logger.info(`Request Processed Successfully: ${url} tenant: ${(req as any).tenant || 'N/A'}`);
-    
+
     return res.status(response.status).json(response.data);
   } catch (error: any) {
     logger.error(`Error In URL: ${url}`);
 
-    let responseData = {
+    const responseData = {
       data: {
         message:
           error?.response?.data?.message ||
@@ -62,7 +62,9 @@ export const forwardRequest = async (
     } else if (error?.request) {
       // The request was made, but no response was received.
       logger.error('Request Error:', error?.message);
-      return res.status(error?.response?.status || 500).json({ message: error?.message || 'Server cannot be reached' });
+      return res
+        .status(error?.response?.status || 500)
+        .json({ message: error?.message || 'Server cannot be reached' });
     } else {
       // Something happened in setting up the request that triggered an error.
       logger.error('Axios Error:', error?.message);

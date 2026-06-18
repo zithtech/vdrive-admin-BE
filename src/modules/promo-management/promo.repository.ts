@@ -6,7 +6,7 @@ export const PromoRepository = {
     const offset = (page - 1) * limit;
     let whereClause = '';
     const params: any[] = [limit, offset];
-    
+
     if (promoType) {
       whereClause = 'WHERE promo_type = $3';
       params.push(promoType);
@@ -24,7 +24,10 @@ export const PromoRepository = {
     );
 
     const countWhereClause = promoType ? 'WHERE promo_type = $1' : '';
-    const totalRes = await query(`SELECT COUNT(*) AS total FROM promos ${countWhereClause}`, promoType ? [promoType] : []);
+    const totalRes = await query(
+      `SELECT COUNT(*) AS total FROM promos ${countWhereClause}`,
+      promoType ? [promoType] : []
+    );
 
     return {
       data: res.rows,
@@ -56,7 +59,7 @@ export const PromoRepository = {
         data.start_date || new Date(),
         data.expiry_date,
         data.is_active ?? true,
-        data.promo_type || 'OFFER'
+        data.promo_type || 'OFFER',
       ]
     );
     return res.rows[0];
@@ -83,7 +86,7 @@ export const PromoRepository = {
         data.expiry_date,
         data.is_active,
         data.promo_type,
-        id
+        id,
       ]
     );
     return res.rows[0];
@@ -114,5 +117,5 @@ export const PromoRepository = {
       [target, driverId || null, promoId]
     );
     return res.rows[0];
-  }
+  },
 };

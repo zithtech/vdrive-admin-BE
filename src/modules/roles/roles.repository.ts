@@ -2,7 +2,9 @@ import { query } from '../../shared/database';
 
 export const RolesRepository = {
   async getAllRoles() {
-    const result = await query('SELECT id, name, description, role_type FROM roles ORDER BY name ASC');
+    const result = await query(
+      'SELECT id, name, description, role_type FROM roles ORDER BY name ASC'
+    );
     return result.rows;
   },
 
@@ -17,7 +19,10 @@ export const RolesRepository = {
     return result.rows;
   },
 
-  async updateRolePermissions(roleId: string, permissions: Array<{ module: string, actions: string[] }>) {
+  async updateRolePermissions(
+    roleId: string,
+    permissions: Array<{ module: string; actions: string[] }>
+  ) {
     // Get all system permissions to map module:action to permission ID
     const allPermsResult = await query('SELECT id, module, action FROM permissions');
     const permMap: Record<string, string> = {};
@@ -52,10 +57,9 @@ export const RolesRepository = {
   },
 
   async updateRoleType(roleId: string, roleType: string) {
-    await query(
-      'UPDATE roles SET role_type = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
-      [roleId, roleType]
-    );
-  }
+    await query('UPDATE roles SET role_type = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1', [
+      roleId,
+      roleType,
+    ]);
+  },
 };
-

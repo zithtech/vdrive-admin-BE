@@ -1,4 +1,3 @@
-
 import { Router } from 'express';
 import { TaxController } from './tax.controller';
 import { validateBody, validateParams } from '../../utilities/helper';
@@ -7,7 +6,7 @@ import { requirePermission } from '../../shared/authorization';
 
 const router = Router();
 
-router.get('/',requirePermission('taxes', 'read'), TaxController.getTaxes);
+router.get('/', requirePermission('taxes', 'read'), TaxController.getTaxes);
 
 router.get(
   '/:id',

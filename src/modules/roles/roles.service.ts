@@ -6,15 +6,15 @@ const SYSTEM_MODULES = Object.keys(VDRIVE_MODULES);
 export const RolesService = {
   async getAllRoles() {
     const roles = await RolesRepository.getAllRoles();
-    return roles.map(role => ({
+    return roles.map((role) => ({
       ...role,
-      is_system: role.role_type === 'system'
+      is_system: role.role_type === 'system',
     }));
   },
 
   async getRolePermissions(roleId: string) {
     const rawPerms = await RolesRepository.getRolePermissions(roleId);
-    
+
     // Initialize full permissions matrix with false based on dynamic config
     const permissions: Record<string, Record<string, boolean>> = {};
     for (const [modKey, modVal] of Object.entries(VDRIVE_MODULES) as [string, any][]) {
@@ -35,7 +35,10 @@ export const RolesService = {
     return { permissions };
   },
 
-  async updateRolePermissions(roleId: string, permissions: Array<{ module: string, actions: string[] }>) {
+  async updateRolePermissions(
+    roleId: string,
+    permissions: Array<{ module: string; actions: string[] }>
+  ) {
     await RolesRepository.updateRolePermissions(roleId, permissions);
   },
 
@@ -43,12 +46,11 @@ export const RolesService = {
     const newRole = await RolesRepository.createRole(name, description, roleType);
     return {
       ...newRole,
-      is_system: newRole.role_type === 'system'
+      is_system: newRole.role_type === 'system',
     };
   },
 
   async updateRoleType(roleId: string, roleType: string) {
     await RolesRepository.updateRoleType(roleId, roleType);
-  }
+  },
 };
-

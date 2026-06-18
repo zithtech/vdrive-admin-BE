@@ -77,5 +77,5 @@ export const PromoController = {
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });
     }
-  }
+  },
 };

@@ -1,4 +1,3 @@
-
 export interface Tax {
   id?: string;
   tax_name: string;

@@ -10,5 +10,5 @@ export const SosManagementController = {
   async resolveSos(req: Request, res: Response, next: NextFunction) {
     // This will forward the resolve request to the User-Driver API (1234)
     return forwardRequest(req, res, next, config.userDriverApiUrl);
-  }
+  },
 };

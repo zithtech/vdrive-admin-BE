@@ -10,13 +10,17 @@ import { logger } from '../../shared/logger';
 
 export class DriverReconciliationService {
   // Sync all reconciliation records
-  static async syncReconciliationData(): Promise<{ success: boolean; message: string; rows_synced: number }> {
+  static async syncReconciliationData(): Promise<{
+    success: boolean;
+    message: string;
+    rows_synced: number;
+  }> {
     try {
       const rowsSynced = await DriverReconciliationRepository.syncAllRows();
       return {
         success: true,
         message: `Successfully synced ${rowsSynced} driver records`,
-        rows_synced: rowsSynced
+        rows_synced: rowsSynced,
       };
     } catch (error: any) {
       logger.error('❌ Error syncing reconciliation data:', error);

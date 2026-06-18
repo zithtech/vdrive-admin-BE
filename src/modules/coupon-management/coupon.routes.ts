@@ -24,7 +24,7 @@ openCouponRoutes.post(
 // Admin routes (require authentication)
 adminCouponRoutes.use(isAuthenticated);
 
-adminCouponRoutes.get('/',requirePermission('coupons', 'read'), CouponController.getCoupons);
+adminCouponRoutes.get('/', requirePermission('coupons', 'read'), CouponController.getCoupons);
 
 adminCouponRoutes.get(
   '/:id',

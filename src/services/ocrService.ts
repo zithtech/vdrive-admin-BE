@@ -14,7 +14,10 @@ export interface ExtractedData {
   error?: string;
 }
 
-export const extractDocumentData = async (imageUrl: string, documentType: string): Promise<ExtractedData> => {
+export const extractDocumentData = async (
+  imageUrl: string,
+  documentType: string
+): Promise<ExtractedData> => {
   try {
     // Ensure imageUrl is a string
     let parsedUrl = imageUrl;
@@ -25,9 +28,10 @@ export const extractDocumentData = async (imageUrl: string, documentType: string
         // ignore
       }
     }
-    
+
     if (typeof parsedUrl === 'object' && parsedUrl !== null) {
-      imageUrl = (parsedUrl as any).front || (parsedUrl as any).url || (parsedUrl as any).back || '';
+      imageUrl =
+        (parsedUrl as any).front || (parsedUrl as any).url || (parsedUrl as any).back || '';
     }
 
     if (typeof imageUrl !== 'string' || !imageUrl) {
@@ -35,24 +39,25 @@ export const extractDocumentData = async (imageUrl: string, documentType: string
     }
 
     console.log(`Starting OCR for ${documentType}: ${imageUrl}`);
-    
+
     let fetchUrl = imageUrl;
     if (fetchUrl.startsWith('/')) {
-      fetchUrl = `http://localhost:1234${fetchUrl}`;
+      fetchUrl = `http://localhost:5006${fetchUrl}`;
     }
 
     let requestBody: any = fetchUrl;
-    
+
     if (fetchUrl.startsWith('http')) {
       try {
         const axios = require('axios');
-        const response = await axios.get(fetchUrl, { 
+        const response = await axios.get(fetchUrl, {
           responseType: 'arraybuffer',
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36',
-            'Referer': 'http://localhost:5173/',
-            'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
-          }
+            'User-Agent':
+              'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36',
+            Referer: 'http://localhost:5173/',
+            Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+          },
         });
         const buffer = Buffer.from(response.data, 'binary');
         requestBody = { image: { content: buffer } };
@@ -65,7 +70,7 @@ export const extractDocumentData = async (imageUrl: string, documentType: string
     // Perform text detection
     const [result] = await client.textDetection(requestBody);
     const detections = result.textAnnotations;
-    
+
     if (!detections || detections.length === 0) {
       console.log('No text detected in the image.');
       return { ocr_status: 'FAILED', error: 'No text detected' };
@@ -74,7 +79,7 @@ export const extractDocumentData = async (imageUrl: string, documentType: string
     const rawText = detections[0].description || '';
     const extractedData: ExtractedData = {
       raw_text: rawText,
-      ocr_status: 'COMPLETED'
+      ocr_status: 'COMPLETED',
     };
 
     // Replace newlines and extra spaces for easier regex parsing
@@ -100,7 +105,10 @@ export const extractDocumentData = async (imageUrl: string, documentType: string
     }
 
     // 3. DRIVING LICENSE Extraction (Indian format variations)
-    else if (documentType.toLowerCase().includes('license') || documentType.toLowerCase().includes('dl')) {
+    else if (
+      documentType.toLowerCase().includes('license') ||
+      documentType.toLowerCase().includes('dl')
+    ) {
       // e.g., TN01 20010000000 or TN0120010000000
       const dlMatch = normalizedText.match(/\b[A-Z]{2}[0-9]{2}[\s-]?[0-9]{11}\b/i);
       if (dlMatch) {
@@ -109,7 +117,10 @@ export const extractDocumentData = async (imageUrl: string, documentType: string
     }
 
     // 4. VEHICLE RC Extraction
-    else if (documentType.toLowerCase().includes('rc') || documentType.toLowerCase().includes('vehicle')) {
+    else if (
+      documentType.toLowerCase().includes('rc') ||
+      documentType.toLowerCase().includes('vehicle')
+    ) {
       // e.g., TN 01 AB 1234
       const rcMatch = normalizedText.match(/\b[A-Z]{2}\s?[0-9]{2}\s?[A-Z]{1,2}\s?[0-9]{4}\b/i);
       if (rcMatch) {
@@ -118,7 +129,10 @@ export const extractDocumentData = async (imageUrl: string, documentType: string
     }
 
     // Attempt to extract Expiry Date ONLY for driving licenses
-    if (documentType.toLowerCase().includes('license') || documentType.toLowerCase().includes('dl')) {
+    if (
+      documentType.toLowerCase().includes('license') ||
+      documentType.toLowerCase().includes('dl')
+    ) {
       // Looks for DD/MM/YYYY or DD-MM-YYYY formats
       const dateMatches = normalizedText.match(/\b\d{2}[\/\-]\d{2}[\/\-]\d{4}\b/g);
       if (dateMatches && dateMatches.length > 0) {
@@ -142,14 +156,13 @@ export const extractDocumentData = async (imageUrl: string, documentType: string
             }
           }
         }
-        
+
         extractedData.extracted_expiry = maxDateStr;
       }
     }
 
     console.log('Extracted Data:', extractedData);
     return extractedData;
-    
   } catch (error) {
     console.error('Error during Google Cloud Vision OCR:', error);
     return { ocr_status: 'FAILED' };

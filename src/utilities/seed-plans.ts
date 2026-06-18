@@ -3,13 +3,13 @@ import path from 'path';
 import { connectDatabase, query } from '../shared/database';
 import { logger } from '../shared/logger';
 
-
 dotenv.config();
 
 const plans = [
   {
     plan_name: 'Basic Plan',
-    description: 'Entry-level plan for drivers who want to operate within their local city with zero commission.',
+    description:
+      'Entry-level plan for drivers who want to operate within their local city with zero commission.',
     ride_limit: 100, // Placeholder
     validity_days: 30, // Placeholder
     price: 0,
@@ -17,17 +17,18 @@ const plans = [
     weekly_price: 0,
     monthly_price: 0,
     features: [
-      "Zero commission on all rides",
-      "Access to local city rides only",
-      "Accept instant ride requests",
-      "Basic customer support",
-      "Scheduled rides not available"
+      'Zero commission on all rides',
+      'Access to local city rides only',
+      'Accept instant ride requests',
+      'Basic customer support',
+      'Scheduled rides not available',
     ],
-    is_active: true
+    is_active: true,
   },
   {
     plan_name: 'Elite Plan',
-    description: 'Advanced plan for drivers who want more ride options and higher earning opportunities.',
+    description:
+      'Advanced plan for drivers who want more ride options and higher earning opportunities.',
     ride_limit: 500, // Placeholder
     validity_days: 30, // Placeholder
     price: 0,
@@ -35,18 +36,19 @@ const plans = [
     weekly_price: 0,
     monthly_price: 0,
     features: [
-      "Zero commission on all rides",
-      "Access to all available ride types",
-      "Scheduled rides enabled (only for weekly and monthly plans)",
-      "Outstation trips enabled",
-      "One-way trips enabled",
-      "Priority ride matching"
+      'Zero commission on all rides',
+      'Access to all available ride types',
+      'Scheduled rides enabled (only for weekly and monthly plans)',
+      'Outstation trips enabled',
+      'One-way trips enabled',
+      'Priority ride matching',
     ],
-    is_active: true
+    is_active: true,
   },
   {
     plan_name: 'Premium Plan',
-    description: 'Full-featured plan designed for high-performing drivers with maximum ride access and priority support.',
+    description:
+      'Full-featured plan designed for high-performing drivers with maximum ride access and priority support.',
     ride_limit: 1000, // Placeholder
     validity_days: 30, // Placeholder
     price: 0,
@@ -54,15 +56,15 @@ const plans = [
     weekly_price: 0,
     monthly_price: 0,
     features: [
-      "Zero commission on all rides",
-      "Access to all available ride types",
-      "Scheduled rides enabled (only for weekly and monthly plans)",
-      "All ride categories enabled: Local rides, Outstation trips, One-way trips, Round trips",
-      "Priority ride matching",
-      "24/7 priority support"
+      'Zero commission on all rides',
+      'Access to all available ride types',
+      'Scheduled rides enabled (only for weekly and monthly plans)',
+      'All ride categories enabled: Local rides, Outstation trips, One-way trips, Round trips',
+      'Priority ride matching',
+      '24/7 priority support',
     ],
-    is_active: true
-  }
+    is_active: true,
+  },
 ];
 
 async function seed() {
@@ -85,7 +87,7 @@ async function seed() {
           plan.weekly_price,
           plan.monthly_price,
           JSON.stringify(plan.features),
-          plan.is_active
+          plan.is_active,
         ]
       );
       logger.info(`- Seeded: ${plan.plan_name}`);

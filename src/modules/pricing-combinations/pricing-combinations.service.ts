@@ -16,7 +16,10 @@ export const PricingCombinationService = {
     return await PricingCombinationRepository.create(data);
   },
 
-  async updateCombination(id: string, data: Partial<PricingCombination>): Promise<PricingCombination | null> {
+  async updateCombination(
+    id: string,
+    data: Partial<PricingCombination>
+  ): Promise<PricingCombination | null> {
     return await PricingCombinationRepository.update(id, data);
   },
 
@@ -32,10 +35,10 @@ export const PricingCombinationService = {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      
+
       // Clear existing matrix
       await client.query('DELETE FROM pricing_combinations');
-      
+
       if (data.length === 0) {
         await client.query('COMMIT');
         return [];
@@ -80,5 +83,5 @@ export const PricingCombinationService = {
 
   async findClosestMatch(duration: number, distance: number): Promise<PricingCombination | null> {
     return await PricingCombinationRepository.findClosestMatch(duration, distance);
-  }
+  },
 };

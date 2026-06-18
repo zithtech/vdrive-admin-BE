@@ -4,9 +4,10 @@ import { AdminUser } from '../admin-users/adminUser.model';
 
 export const AuthRepository = {
   async getUserData(data: { user_name: string }): Promise<AdminUser> {
-    const result = await query('SELECT id, name, password, role FROM admin_users WHERE email = $1', [
-      data.user_name,
-    ]);
+    const result = await query(
+      'SELECT id, name, password, role FROM admin_users WHERE email = $1',
+      [data.user_name]
+    );
     return result.rows[0];
   },
   async getUserDataById(userId: string): Promise<AdminUser> {

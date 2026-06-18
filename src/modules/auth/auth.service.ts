@@ -68,7 +68,7 @@ export const AuthService = {
     user_name: string;
     password: string;
   }): Promise<{ accessToken: string; refreshToken: string }> {
-    let userData = await AuthRepository.getUserData({ user_name: data?.user_name });
+    const userData = await AuthRepository.getUserData({ user_name: data?.user_name });
     if (!userData) {
       throw { statusCode: 401, message: 'Invalid credentials' };
     }
@@ -85,7 +85,7 @@ export const AuthService = {
     return tokens;
   },
   async forgotPassword(data: { user_name: string }): Promise<boolean> {
-    let userData = await AuthRepository.getUserData({ user_name: data?.user_name });
+    const userData = await AuthRepository.getUserData({ user_name: data?.user_name });
     if (!userData) {
       throw { statusCode: 404, message: 'User not found' };
     }

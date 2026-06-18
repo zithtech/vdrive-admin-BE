@@ -4,7 +4,8 @@ interface AuthRequest extends Request {
   user?: { id: string; role: string };
 }
 
-export const requireRole = (...roles: string[]) =>
+export const requireRole =
+  (...roles: string[]) =>
   (req: AuthRequest, res: Response, next: NextFunction): void => {
     if (!req.user || !roles.includes(req.user.role)) {
       res.status(403).json({

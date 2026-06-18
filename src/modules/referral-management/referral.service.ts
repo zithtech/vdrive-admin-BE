@@ -32,5 +32,5 @@ export const ReferralService = {
 
   async listReferralLogs(userType: string) {
     return await ReferralRepository.getReferralLogs(userType as 'CUSTOMER' | 'DRIVER');
-  }
+  },
 };
