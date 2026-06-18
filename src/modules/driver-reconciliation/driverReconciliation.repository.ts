@@ -150,8 +150,7 @@ export class DriverReconciliationRepository {
       `;
       params = [email];
       matchConfidence = 2; // Email match only
-    }
- else {
+    } else {
       return { has_account: false, is_onboarded: false, match_confidence: 0 };
     }
 
@@ -316,7 +315,7 @@ export class DriverReconciliationRepository {
       AND d.is_deleted = false
       RETURNING drr.id
     `);
-    
+
     return result.rowCount || 0;
   }
 }

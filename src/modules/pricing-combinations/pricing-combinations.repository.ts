@@ -36,11 +36,13 @@ export const PricingCombinationRepository = {
   },
 
   async update(id: string, data: Partial<PricingCombination>): Promise<PricingCombination | null> {
-    const fields = Object.keys(data).filter(key => ['tier', 'duration', 'distance', 'type', 'price', 'per_km_rate'].includes(key));
+    const fields = Object.keys(data).filter((key) =>
+      ['tier', 'duration', 'distance', 'type', 'price', 'per_km_rate'].includes(key)
+    );
     if (fields.length === 0) return this.getById(id);
 
     const setClause = fields.map((field, index) => `${field} = $${index + 2}`).join(', ');
-    const values = fields.map(field => (data as any)[field]);
+    const values = fields.map((field) => (data as any)[field]);
 
     const result = await query(
       `UPDATE pricing_combinations SET ${setClause}, updated_at = NOW() WHERE id = $1 RETURNING *`,
@@ -60,14 +62,7 @@ export const PricingCombinationRepository = {
       placeholders.push(
         `($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4}, $${paramIndex + 5}, NOW(), NOW())`
       );
-      values.push(
-        item.tier,
-        item.duration,
-        item.distance,
-        item.type,
-        item.price,
-        item.per_km_rate
-      );
+      values.push(item.tier, item.duration, item.distance, item.type, item.price, item.per_km_rate);
       paramIndex += 6;
     }
 
@@ -92,5 +87,5 @@ export const PricingCombinationRepository = {
       [duration, distance]
     );
     return result.rows[0] || null;
-  }
+  },
 };

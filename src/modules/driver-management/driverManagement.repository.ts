@@ -1,4 +1,3 @@
-
 import { query } from '../../shared/database';
 import config from '../../config';
 import { logger } from '../../shared/logger';
@@ -13,14 +12,18 @@ const transformUrl = (url: string) => {
 
 const transformDriverUrls = (driver: any) => {
   // 1. Resolve raw profile URL from possible fields
-  let rawProfile = driver.profile_pic_url || driver.profilePicUrl || driver.profile_picture;
+  const rawProfile = driver.profile_pic_url || driver.profilePicUrl || driver.profile_picture;
   let resolvedUrl = null;
 
   if (rawProfile) {
     try {
       // Handle potential JSON string from database
-      const parsed = typeof rawProfile === 'string' && rawProfile.startsWith('{') ? JSON.parse(rawProfile) : rawProfile;
-      resolvedUrl = typeof parsed === 'object' && parsed !== null ? parsed.url || parsed.front : parsed;
+      const parsed =
+        typeof rawProfile === 'string' && rawProfile.startsWith('{')
+          ? JSON.parse(rawProfile)
+          : rawProfile;
+      resolvedUrl =
+        typeof parsed === 'object' && parsed !== null ? parsed.url || parsed.front : parsed;
     } catch (e) {
       resolvedUrl = rawProfile;
     }
@@ -28,14 +31,16 @@ const transformDriverUrls = (driver: any) => {
 
   // 2. Fallback to profile_selfie document if no direct profile photo
   if (!resolvedUrl && driver.documents && Array.isArray(driver.documents)) {
-    const selfie = driver.documents.find((d: any) => 
-      d.document_type?.toLowerCase().includes('profile_selfie') || 
-      d.document_type?.toLowerCase().includes('profile selfie') ||
-      d.document_type === 'PROFILE_SELFIE'
+    const selfie = driver.documents.find(
+      (d: any) =>
+        d.document_type?.toLowerCase().includes('profile_selfie') ||
+        d.document_type?.toLowerCase().includes('profile selfie') ||
+        d.document_type === 'PROFILE_SELFIE'
     );
     if (selfie && selfie.document_url) {
       const docUrl = selfie.document_url;
-      resolvedUrl = typeof docUrl === 'object' && docUrl !== null ? docUrl.url || docUrl.front : docUrl;
+      resolvedUrl =
+        typeof docUrl === 'object' && docUrl !== null ? docUrl.url || docUrl.front : docUrl;
     }
   }
 
@@ -78,7 +83,6 @@ const transformDriverUrls = (driver: any) => {
   return driver;
 };
 
-
 export class DriverManagementRepository {
   static async findAll(limit: number = 50, offset: number = 0) {
     const result = await query(
@@ -113,19 +117,19 @@ export class DriverManagementRepository {
        ORDER BY d.created_at DESC LIMIT $1 OFFSET $2`,
       [limit, offset]
     );
-    
+
     const countResult = await query('SELECT COUNT(*) FROM drivers WHERE is_deleted = false');
-    
+
     return {
       drivers: result.rows.map((row: any) => {
         let documents = row.documents || [];
         documents = documents.map((doc: any) => {
           let urlObj = doc.document_url;
           try {
-             if (typeof urlObj === 'string' && urlObj.startsWith('{')) {
-               urlObj = JSON.parse(urlObj);
-             }
-          } catch(e) {}
+            if (typeof urlObj === 'string' && urlObj.startsWith('{')) {
+              urlObj = JSON.parse(urlObj);
+            }
+          } catch (e) {}
           return { ...doc, document_url: urlObj };
         });
 
@@ -144,22 +148,21 @@ export class DriverManagementRepository {
   static async findById(id: string) {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     const isUuid = uuidRegex.test(id);
-    
+
     const result = await query(
       `SELECT * FROM drivers WHERE ${isUuid ? 'id' : 'vdrive_id'} = $1 AND is_deleted = false`,
       [id]
     );
-    
+
     if (result.rows.length === 0) return null;
     const driver = result.rows[0];
 
     // Fetch documents for the driver
-    const documentsResult = await query(
-      `SELECT * FROM driver_documents WHERE driver_id = $1`,
-      [driver.id]
-    );
+    const documentsResult = await query(`SELECT * FROM driver_documents WHERE driver_id = $1`, [
+      driver.id,
+    ]);
 
-    driver.documents = documentsResult.rows.map(doc => {
+    driver.documents = documentsResult.rows.map((doc) => {
       let urlObj = doc.document_url;
       try {
         if (typeof urlObj === 'string' && urlObj.startsWith('{')) {
@@ -175,7 +178,7 @@ export class DriverManagementRepository {
         license_status: doc.status || 'pending',
         expiry_date: doc.expiry_date,
         extracted_data: doc.extracted_data,
-        rejection_reason: doc.rejection_reason
+        rejection_reason: doc.rejection_reason,
       };
     });
 
@@ -188,20 +191,20 @@ export class DriverManagementRepository {
         'UPDATE driver_documents SET status = $1, rejection_reason = $2, verified_at = NOW() WHERE id = $3 RETURNING *',
         [status, reason || null, documentId]
       );
-      
+
       if (result.rows.length === 0) {
         return null;
       }
-      
+
       const doc = result.rows[0];
       await query(
         'INSERT INTO driver_document_history (document_id, status, reason) VALUES ($1, $2, $3)',
         [documentId, status, reason || null]
       );
-      
+
       // Sync overall driver KYC status
       await this.syncDriverKYCStatus(doc.driver_id);
-      
+
       return doc;
     } catch (error) {
       throw error;
@@ -216,7 +219,8 @@ export class DriverManagementRepository {
       );
       return result.rows[0];
     } catch (error: any) {
-      if (error.code === '42703') { // Column does not exist
+      if (error.code === '42703') {
+        // Column does not exist
         console.error('extracted_data column missing in driver_documents table.');
         return null;
       }
@@ -232,13 +236,15 @@ export class DriverManagementRepository {
     const docs = documentsResult.rows;
 
     const mandatoryTypes = ['aadhaar_card', 'driving_license', 'pan_card', 'profile_selfie'];
-    const mandatoryDocs = docs.filter(d => mandatoryTypes.includes(d.document_type));
+    const mandatoryDocs = docs.filter((d) => mandatoryTypes.includes(d.document_type));
 
     let overallStatus = 'pending';
     let onboardingStatusUpdate = null;
 
-    const allVerified = mandatoryDocs.length === mandatoryTypes.length && mandatoryDocs.every(d => d.status === 'verified');
-    const anyRejected = mandatoryDocs.some(d => d.status === 'rejected');
+    const allVerified =
+      mandatoryDocs.length === mandatoryTypes.length &&
+      mandatoryDocs.every((d) => d.status === 'verified');
+    const anyRejected = mandatoryDocs.some((d) => d.status === 'rejected');
 
     if (allVerified) {
       overallStatus = 'verified';
@@ -250,10 +256,10 @@ export class DriverManagementRepository {
 
     const kycData = {
       overallStatus,
-      verifiedAt: overallStatus === 'verified' ? new Date().toISOString() : null
+      verifiedAt: overallStatus === 'verified' ? new Date().toISOString() : null,
     };
 
-    let sql = 'UPDATE drivers SET kyc = COALESCE(kyc, \'{}\'::jsonb) || $1';
+    let sql = "UPDATE drivers SET kyc = COALESCE(kyc, '{}'::jsonb) || $1";
     const params: any[] = [JSON.stringify(kycData), driverId];
 
     if (onboardingStatusUpdate) {
@@ -264,7 +270,9 @@ export class DriverManagementRepository {
     sql += ', updated_at = NOW() WHERE id = $2';
 
     await query(sql, params);
-    logger.info(`syncDriverKYCStatus for ${driverId}: overallStatus=${overallStatus}, onboardingStatus=${onboardingStatusUpdate}`);
+    logger.info(
+      `syncDriverKYCStatus for ${driverId}: overallStatus=${overallStatus}, onboardingStatus=${onboardingStatusUpdate}`
+    );
   }
 
   static async bulkVerifyDocuments(driverId: string) {
@@ -281,7 +289,7 @@ export class DriverManagementRepository {
           [doc.id]
         );
       }
-      
+
       // Sync overall driver KYC status
       await this.syncDriverKYCStatus(driverId);
     }
@@ -346,10 +354,10 @@ export class DriverManagementRepository {
         documents = documents.map((doc: any) => {
           let urlObj = doc.document_url;
           try {
-             if (typeof urlObj === 'string' && urlObj.startsWith('{')) {
-               urlObj = JSON.parse(urlObj);
-             }
-          } catch(e) {}
+            if (typeof urlObj === 'string' && urlObj.startsWith('{')) {
+              urlObj = JSON.parse(urlObj);
+            }
+          } catch (e) {}
           return { ...doc, document_url: urlObj };
         });
 
@@ -370,8 +378,11 @@ export class DriverManagementRepository {
     const isUuid = uuidRegex.test(id);
     const idColumn = isUuid ? 'id' : 'vdrive_id';
 
-    const onboardingUpdate = status === 'active' ? ", onboarding_status = 'ONBOARDING_COMPLETED', documents_submitted = true" : "";
-    
+    const onboardingUpdate =
+      status === 'active'
+        ? ", onboarding_status = 'ONBOARDING_COMPLETED', documents_submitted = true"
+        : '';
+
     await query(
       `UPDATE drivers SET status = $1, status_reason = $2, updated_at = NOW() ${onboardingUpdate} WHERE ${idColumn} = $3`,
       [status, reason || null, id]
@@ -386,7 +397,7 @@ export class DriverManagementRepository {
 
     const kycData = JSON.stringify({
       overallStatus: kycStatus,
-      verifiedAt: kycStatus === 'verified' ? new Date().toISOString() : null
+      verifiedAt: kycStatus === 'verified' ? new Date().toISOString() : null,
     });
 
     if (kycStatus === 'verified') {
@@ -394,7 +405,7 @@ export class DriverManagementRepository {
         `UPDATE drivers SET kyc = COALESCE(kyc, '{}'::jsonb) || $1, status = 'active', documents_submitted = true, onboarding_status = 'ONBOARDING_COMPLETED', updated_at = NOW() WHERE ${idColumn} = $2`,
         [kycData, id]
       );
-      
+
       // We need the internal UUID for the documents update if we don't have it
       let internalId = id;
       if (!isUuid) {
@@ -424,7 +435,9 @@ export class DriverManagementRepository {
     if (data.first_name !== undefined || data.last_name !== undefined) {
       // If only one is provided, we need to fetch the other from DB
       if (data.first_name === undefined || data.last_name === undefined) {
-        const existing = await query('SELECT first_name, last_name FROM drivers WHERE id = $1', [id]);
+        const existing = await query('SELECT first_name, last_name FROM drivers WHERE id = $1', [
+          id,
+        ]);
         if (existing.rows.length > 0) {
           const firstName = data.first_name ?? existing.rows[0].first_name ?? '';
           const lastName = data.last_name ?? existing.rows[0].last_name ?? '';
@@ -440,7 +453,17 @@ export class DriverManagementRepository {
       data.date_of_birth = data.dob;
     }
 
-    const allowedFields = ['first_name', 'last_name', 'full_name', 'email', 'phone_number', 'date_of_birth', 'gender', 'role', 'address'];
+    const allowedFields = [
+      'first_name',
+      'last_name',
+      'full_name',
+      'email',
+      'phone_number',
+      'date_of_birth',
+      'gender',
+      'role',
+      'address',
+    ];
 
     for (const key of allowedFields) {
       if (data[key] !== undefined) {
@@ -459,26 +482,22 @@ export class DriverManagementRepository {
 
     values.push(id);
     const sql = `UPDATE drivers SET ${fields.join(', ')}, updated_at = NOW() WHERE id = $${counter} RETURNING *`;
-    
+
     const result = await query(sql, values);
     return result.rows[0];
   }
 
   static async getDashboardStats() {
-    const totalResult = await query(
-      'SELECT COUNT(*) FROM drivers WHERE is_deleted = false'
-    );
+    const totalResult = await query('SELECT COUNT(*) FROM drivers WHERE is_deleted = false');
     const activeResult = await query(
       "SELECT COUNT(*) FROM drivers WHERE is_deleted = false AND status = 'active'"
     );
 
     // Today's boundaries
     const today = 'CURRENT_DATE';
-    
+
     // Today's metrics
-    const todayUsersResult = await query(
-      `SELECT COUNT(*) FROM users WHERE created_at >= ${today}`
-    );
+    const todayUsersResult = await query(`SELECT COUNT(*) FROM users WHERE created_at >= ${today}`);
     const todayDriversResult = await query(
       `SELECT COUNT(*) FROM drivers WHERE created_at >= ${today} AND is_deleted = false`
     );
@@ -492,12 +511,8 @@ export class DriverManagementRepository {
     );
 
     // Total counts (Lifetime)
-    const totalUsersResult = await query(
-      "SELECT COUNT(*) FROM users"
-    );
-    const activeUsersResult = await query(
-      "SELECT COUNT(*) FROM users WHERE status = 'active'"
-    );
+    const totalUsersResult = await query('SELECT COUNT(*) FROM users');
+    const activeUsersResult = await query("SELECT COUNT(*) FROM users WHERE status = 'active'");
     const totalSubscriptionsResult = await query(
       "SELECT COUNT(*) FROM driver_subscriptions WHERE status = 'active'"
     );
@@ -553,9 +568,8 @@ export class DriverManagementRepository {
     );
     const verifiedDriversCount = parseInt(verifiedDriversResult.rows[0]?.count || '0');
     const totalDriversCount = parseInt(totalResult.rows[0]?.count || '0');
-    const complianceHealth = totalDriversCount > 0 
-      ? Math.round((verifiedDriversCount / totalDriversCount) * 100) 
-      : 100;
+    const complianceHealth =
+      totalDriversCount > 0 ? Math.round((verifiedDriversCount / totalDriversCount) * 100) : 100;
 
     const activeTripsCount = parseInt(onTripResult.rows[0]?.count || '0');
     const onlineCount = parseInt(onlineResult.rows[0]?.count || '0');
@@ -573,7 +587,7 @@ export class DriverManagementRepository {
       todaySubscriptions: parseInt(todaySubscriptionsResult.rows[0]?.count || '0'),
       todayTrips: parseInt(todayTripsResult.rows[0]?.total || '0'),
       todayRevenue: parseFloat(todayTripsResult.rows[0]?.revenue || '0'),
-      
+
       yesterdayUsers: parseInt(yesterdayUsersResult.rows[0]?.count || '0'),
       yesterdayDrivers: parseInt(yesterdayDriversResult.rows[0]?.count || '0'),
       yesterdaySubscriptions: parseInt(yesterdaySubscriptionsResult.rows[0]?.count || '0'),
@@ -607,9 +621,7 @@ export class DriverManagementRepository {
         subscriptions: calculateTrend(stats.todaySubscriptions, stats.yesterdaySubscriptions),
         trips: calculateTrend(stats.todayTrips, stats.yesterdayTrips),
         revenue: calculateTrend(stats.todayRevenue, stats.yesterdayRevenue),
-      }
+      },
     };
   }
-
-
 }

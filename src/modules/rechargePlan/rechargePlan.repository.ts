@@ -1,9 +1,6 @@
-
 import { query } from '../../shared/database';
 
 export const RechargePlanRepository = {
-
- 
   async getPlans(page: number, limit: number) {
     const offset = (page - 1) * limit;
 
@@ -14,9 +11,7 @@ export const RechargePlanRepository = {
       [limit, offset]
     );
 
-    const totalRes = await query(
-      `SELECT COUNT(*) AS total FROM recharge_plans`
-    );
+    const totalRes = await query(`SELECT COUNT(*) AS total FROM recharge_plans`);
 
     return {
       data: plans.rows,
@@ -24,16 +19,11 @@ export const RechargePlanRepository = {
     };
   },
 
-  
   async getById(id: number) {
-    const res = await query(
-      `SELECT * FROM recharge_plans WHERE id=$1`,
-      [id]
-    );
+    const res = await query(`SELECT * FROM recharge_plans WHERE id=$1`, [id]);
     return res.rows[0];
   },
 
- 
   async create(data: any) {
     const res = await query(
       `INSERT INTO recharge_plans 
@@ -55,7 +45,6 @@ export const RechargePlanRepository = {
     );
     return res.rows[0];
   },
-
 
   async update(id: number, data: any) {
     const res = await query(
@@ -88,8 +77,6 @@ export const RechargePlanRepository = {
     return res.rows[0];
   },
 
-
-  
   async toggle(id: number, status: boolean) {
     const res = await query(
       `UPDATE recharge_plans 
@@ -288,7 +275,7 @@ export const RechargePlanRepository = {
     `;
 
     const res = await query(historyQuery, [driverId]);
-    
+
     const summaryQuery = `
       SELECT 
         COUNT(*) as total_subscriptions,
@@ -307,15 +294,12 @@ export const RechargePlanRepository = {
 
     return {
       history: res.rows,
-      summary: summaryRes.rows[0]
+      summary: summaryRes.rows[0],
     };
   },
 
   async delete(id: number) {
-    await query(
-      `DELETE FROM recharge_plans WHERE id=$1`,
-      [id]
-    );
+    await query(`DELETE FROM recharge_plans WHERE id=$1`, [id]);
   },
 
   async recordHistory(data: {
@@ -404,7 +388,7 @@ export const RechargePlanRepository = {
 
   async getPayments(page = 1, limit = 10) {
     const offset = (page - 1) * limit;
-    
+
     // Fetch total count
     const countRes = await query('SELECT COUNT(*) FROM subscription_payments');
     const total = parseInt(countRes.rows[0].count, 10);
@@ -426,7 +410,7 @@ export const RechargePlanRepository = {
 
     return {
       data: res.rows,
-      total
+      total,
     };
   },
 

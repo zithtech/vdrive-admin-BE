@@ -1,7 +1,8 @@
 import { query } from '../../shared/database';
 import { AdminUser, PublicAdminUser } from './adminUser.model';
 
-const SAFE_COLUMNS = 'id, name, email, contact, role, role_id, created_at, updated_at, deleted_at, is_deleted';
+const SAFE_COLUMNS =
+  'id, name, email, contact, role, role_id, created_at, updated_at, deleted_at, is_deleted';
 
 export const AdminUserRepository = {
   async findAll(): Promise<PublicAdminUser[]> {

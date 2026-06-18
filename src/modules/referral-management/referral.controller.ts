@@ -49,7 +49,9 @@ export const ReferralController = {
     try {
       const { user_type } = req.query;
       if (!user_type) {
-        return res.status(400).json({ success: false, message: 'user_type query param is required' });
+        return res
+          .status(400)
+          .json({ success: false, message: 'user_type query param is required' });
       }
       const config = await ReferralService.getActiveConfig(user_type as string);
       return res.status(200).json({ success: true, data: config || null });
@@ -63,7 +65,9 @@ export const ReferralController = {
     try {
       const { user_type } = req.query;
       if (!user_type) {
-        return res.status(400).json({ success: false, message: 'user_type query param is required' });
+        return res
+          .status(400)
+          .json({ success: false, message: 'user_type query param is required' });
       }
       const logs = await ReferralService.listReferralLogs(user_type as string);
       return res.status(200).json({ success: true, data: logs });
@@ -71,5 +75,5 @@ export const ReferralController = {
       logger.error('ReferralController.listLogs error', error);
       return res.status(500).json({ success: false, message: error.message });
     }
-  }
+  },
 };

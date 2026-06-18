@@ -26,5 +26,5 @@ export const WebhookController = {
       logger.error('Error handling webhook driver event:', err);
       next(err);
     }
-  }
+  },
 };

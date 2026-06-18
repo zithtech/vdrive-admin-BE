@@ -1,14 +1,10 @@
-
 import { Joi } from 'celebrate';
 //import * as commonSchema from './validator';
 
-
 export const RechargePlanValidation = {
-
   idValidation: Joi.object().keys({
-  id: Joi.number().integer().positive().required()
-}),
-
+    id: Joi.number().integer().positive().required(),
+  }),
 
   createValidation: Joi.object().keys({
     planName: Joi.string().min(2).max(100).required(),
@@ -48,5 +44,4 @@ export const RechargePlanValidation = {
   statusValidation: Joi.object({
     isActive: Joi.boolean().required(),
   }),
-
 };

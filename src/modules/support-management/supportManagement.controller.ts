@@ -5,7 +5,6 @@ import config from '../../config';
 import { notifyUserBackend } from '../../services/socket';
 
 export const SupportManagementController = {
-
   /* ======================== FAQs ======================== */
 
   async getFaqs(req: Request, res: Response, next: NextFunction) {
@@ -20,7 +19,12 @@ export const SupportManagementController = {
   async createFaq(req: Request, res: Response, next: NextFunction) {
     try {
       const { question, answer, category, sort_order } = req.body;
-      const faq = await SupportManagementRepository.insertFaq({ question, answer, category, sort_order });
+      const faq = await SupportManagementRepository.insertFaq({
+        question,
+        answer,
+        category,
+        sort_order,
+      });
       return res.status(201).json({ success: true, message: 'FAQ created', data: faq });
     } catch (error) {
       next(error);
@@ -86,7 +90,11 @@ export const SupportManagementController = {
     try {
       const { id } = req.params;
       const { status, admin_notes } = req.body;
-      const ticket = await SupportManagementRepository.updateTicketStatus(id as string, status, admin_notes);
+      const ticket = await SupportManagementRepository.updateTicketStatus(
+        id as string,
+        status,
+        admin_notes
+      );
       if (!ticket) return res.status(404).json({ success: false, message: 'Ticket not found' });
 
       // If resolved or closed, notify User Backend to switch driver to AI
@@ -127,23 +135,29 @@ export const SupportManagementController = {
         ticket_id: id as string,
         sender_id,
         sender_type: 'admin',
-        message
+        message,
       });
 
       // Send Push Notification to Driver via User-Driver-API
       try {
-        const fcmToken = await SupportManagementRepository.getDriverFcmTokenByTicketId(id as string);
+        const fcmToken = await SupportManagementRepository.getDriverFcmTokenByTicketId(
+          id as string
+        );
         if (fcmToken) {
-          await axios.post(`${config.userDriverApiUrl}/api/notifications/internal/send`, {
-            driverId: (await SupportManagementRepository.findTicketById(id as string))?.driver_id,
-            title: 'Support Update',
-            body: `Agent replied: "${message.substring(0, 50)}..."`,
-            data: { type: 'SUPPORT_REPLY', ticketId: id as string }
-          }, {
-            headers: {
-              'x-api-key': config.internalServiceApiKey,
+          await axios.post(
+            `${config.userDriverApiUrl}/api/notifications/internal/send`,
+            {
+              driverId: (await SupportManagementRepository.findTicketById(id as string))?.driver_id,
+              title: 'Support Update',
+              body: `Agent replied: "${message.substring(0, 50)}..."`,
+              data: { type: 'SUPPORT_REPLY', ticketId: id as string },
+            },
+            {
+              headers: {
+                'x-api-key': config.internalServiceApiKey,
+              },
             }
-          });
+          );
         }
       } catch (error: any) {
         // Log but don't fail the request
@@ -155,7 +169,6 @@ export const SupportManagementController = {
       next(error);
     }
   },
-
 
   /* ======================== USER TICKETS (Created via User-Driver-API) ======================== */
 
@@ -180,13 +193,17 @@ export const SupportManagementController = {
 
       // Notify User-Driver-API to switch driver to AI immediately
       try {
-        await axios.post(`${config.userDriverApiUrl}/api/support/trigger-ai-fallback`, {
-          ticketId: ticket.id,
-        }, {
-          headers: {
-            'x-api-key': config.internalServiceApiKey,
+        await axios.post(
+          `${config.userDriverApiUrl}/api/support/trigger-ai-fallback`,
+          {
+            ticketId: ticket.id,
           },
-        });
+          {
+            headers: {
+              'x-api-key': config.internalServiceApiKey,
+            },
+          }
+        );
       } catch (error: any) {
         console.error('Failed to trigger AI fallback:', error.message);
         // Don't fail the request - we can retry or handle later
@@ -196,22 +213,28 @@ export const SupportManagementController = {
       try {
         const fcmToken = await SupportManagementRepository.getUserFcmToken(user_id as string);
         if (fcmToken) {
-          await axios.post(`${config.userDriverApiUrl}/api/notifications/internal/send`, {
-            userId: user_id,
-            title: 'Support Ticket Created',
-            body: `Your ticket "${subject}" has been created.`,
-            data: { type: 'USER_TICKET_CREATED', ticketId: ticket.id }
-          }, {
-            headers: {
-              'x-api-key': config.internalServiceApiKey,
+          await axios.post(
+            `${config.userDriverApiUrl}/api/notifications/internal/send`,
+            {
+              userId: user_id,
+              title: 'Support Ticket Created',
+              body: `Your ticket "${subject}" has been created.`,
+              data: { type: 'USER_TICKET_CREATED', ticketId: ticket.id },
             },
-          });
+            {
+              headers: {
+                'x-api-key': config.internalServiceApiKey,
+              },
+            }
+          );
         }
       } catch (error: any) {
         console.error('Failed to send user notification:', error.message);
       }
 
-      return res.status(201).json({ success: true, message: 'Ticket created successfully', data: ticket });
+      return res
+        .status(201)
+        .json({ success: true, message: 'Ticket created successfully', data: ticket });
     } catch (error) {
       next(error);
     }
@@ -251,7 +274,11 @@ export const SupportManagementController = {
     try {
       const { id } = req.params;
       const { status, admin_notes } = req.body;
-      const ticket = await SupportManagementRepository.updateUserTicketStatus(id as string, status, admin_notes);
+      const ticket = await SupportManagementRepository.updateUserTicketStatus(
+        id as string,
+        status,
+        admin_notes
+      );
       if (!ticket) return res.status(404).json({ success: false, message: 'Ticket not found' });
 
       // If resolved or closed, notify User Backend to switch driver to AI
@@ -265,16 +292,20 @@ export const SupportManagementController = {
         if (userId) {
           const fcmToken = await SupportManagementRepository.getUserFcmToken(userId);
           if (fcmToken) {
-            await axios.post(`${config.userDriverApiUrl}/api/notifications/internal/send`, {
-              userId: userId,
-              title: 'Ticket Updated',
-              body: `Status changed to ${status}.`,
-              data: { type: 'USER_TICKET_STATUS_UPDATE', ticketId: id }
-            }, {
-              headers: {
-                'x-api-key': config.internalServiceApiKey,
+            await axios.post(
+              `${config.userDriverApiUrl}/api/notifications/internal/send`,
+              {
+                userId: userId,
+                title: 'Ticket Updated',
+                body: `Status changed to ${status}.`,
+                data: { type: 'USER_TICKET_STATUS_UPDATE', ticketId: id },
               },
-            });
+              {
+                headers: {
+                  'x-api-key': config.internalServiceApiKey,
+                },
+              }
+            );
           }
         }
       } catch (error: any) {
@@ -297,7 +328,7 @@ export const SupportManagementController = {
     }
   },
 
-   async sendUserSupportMessage(req: Request, res: Response, next: NextFunction) {
+  async sendUserSupportMessage(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
       const { sender_id, message } = req.body;
@@ -305,23 +336,29 @@ export const SupportManagementController = {
         ticket_id: id as string,
         sender_id,
         sender_type: 'admin',
-        message
+        message,
       });
 
       // Send Push Notification to Driver via User-Driver-API
       try {
-        const fcmToken = await SupportManagementRepository.getUserFcmToken((await SupportManagementRepository.getUserTicketById(id as string))?.user_id as string);
+        const fcmToken = await SupportManagementRepository.getUserFcmToken(
+          (await SupportManagementRepository.getUserTicketById(id as string))?.user_id as string
+        );
         if (fcmToken) {
-          await axios.post(`${config.userDriverApiUrl}/api/notifications/internal/send`, {
-            userId: (await SupportManagementRepository.getUserTicketById(id as string))?.user_id,
-            title: 'Support Update',
-            body: `Agent replied: "${message.substring(0, 50)}..."`,
-            data: { type: 'SUPPORT_REPLY', ticketId: id as string }
-          }, {
-            headers: {
-              'x-api-key': config.internalServiceApiKey,
+          await axios.post(
+            `${config.userDriverApiUrl}/api/notifications/internal/send`,
+            {
+              userId: (await SupportManagementRepository.getUserTicketById(id as string))?.user_id,
+              title: 'Support Update',
+              body: `Agent replied: "${message.substring(0, 50)}..."`,
+              data: { type: 'SUPPORT_REPLY', ticketId: id as string },
+            },
+            {
+              headers: {
+                'x-api-key': config.internalServiceApiKey,
+              },
             }
-          });
+          );
         }
       } catch (error: any) {
         // Log but don't fail the request

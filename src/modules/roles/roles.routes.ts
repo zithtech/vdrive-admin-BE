@@ -10,4 +10,3 @@ router.put('/:roleId/permissions', RolesController.updateRolePermissions);
 router.patch('/:roleId/type', RolesController.updateRoleType);
 
 export default router;
-

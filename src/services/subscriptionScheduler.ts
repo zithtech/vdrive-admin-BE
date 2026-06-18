@@ -12,7 +12,7 @@ export const initSubscriptionScheduler = () => {
   cron.schedule('0 9 * * *', async () => {
     const lockKey = 'automated_subscription_notifications';
     const hasLock = await acquireLock(lockKey, 3600); // 1 hour TTL
-    
+
     if (!hasLock) {
       logger.debug('Subscription notification job skipped: already running on another instance.');
       return;
@@ -21,7 +21,9 @@ export const initSubscriptionScheduler = () => {
     logger.info('Running automated subscription notification job...');
     try {
       const results = await RechargePlanService.runAutomatedDailyNotifications();
-      logger.info(`Subscription job completed. Notifications sent: ${results.sentCount} out of ${results.scannedCount} active/recently expired drivers.`);
+      logger.info(
+        `Subscription job completed. Notifications sent: ${results.sentCount} out of ${results.scannedCount} active/recently expired drivers.`
+      );
     } catch (error: any) {
       logger.error(`Error in subscription notification job: ${error.message}`);
     } finally {

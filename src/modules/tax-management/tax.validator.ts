@@ -1,9 +1,8 @@
-
 import { Joi } from 'celebrate';
 
 export const TaxValidation = {
   idValidation: Joi.object().keys({
-    id: Joi.string().uuid().required()
+    id: Joi.string().uuid().required(),
   }),
 
   createValidation: Joi.object().keys({
@@ -14,7 +13,9 @@ export const TaxValidation = {
     description: Joi.string().allow('', null),
     is_active: Joi.boolean().default(true),
     is_default: Joi.boolean().default(false),
-    indian_tax: Joi.string().valid('GST', 'CGST', 'SGST', 'IGST', 'UTGST', 'TDS', 'TCS', 'VAT', 'PT', 'SURCHARGE').allow(null, ''),
+    indian_tax: Joi.string()
+      .valid('GST', 'CGST', 'SGST', 'IGST', 'UTGST', 'TDS', 'TCS', 'VAT', 'PT', 'SURCHARGE')
+      .allow(null, ''),
   }),
 
   updateValidation: Joi.object({
@@ -25,7 +26,9 @@ export const TaxValidation = {
     description: Joi.string().allow('', null),
     is_active: Joi.boolean(),
     is_default: Joi.boolean(),
-    indian_tax: Joi.string().valid('GST', 'CGST', 'SGST', 'IGST', 'UTGST', 'TDS', 'TCS', 'VAT', 'PT', 'SURCHARGE').allow(null, ''),
+    indian_tax: Joi.string()
+      .valid('GST', 'CGST', 'SGST', 'IGST', 'UTGST', 'TDS', 'TCS', 'VAT', 'PT', 'SURCHARGE')
+      .allow(null, ''),
   })
     .min(1)
     .messages({

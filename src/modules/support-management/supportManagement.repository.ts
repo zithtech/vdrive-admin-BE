@@ -1,7 +1,6 @@
 import { query } from '../../shared/database';
 
 export const SupportManagementRepository = {
-
   /* ======================== FAQs ======================== */
 
   async findAllFaqs(): Promise<any[]> {
@@ -20,13 +19,23 @@ export const SupportManagementRepository = {
     return result.rows[0] || null;
   },
 
-  async insertFaq(data: { question: string; answer: string; category: string; sort_order?: number }): Promise<any> {
+  async insertFaq(data: {
+    question: string;
+    answer: string;
+    category: string;
+    sort_order?: number;
+  }): Promise<any> {
     const sql = `
       INSERT INTO support_faqs (question, answer, category, sort_order)
       VALUES ($1, $2, $3, $4)
       RETURNING *
     `;
-    const result = await query(sql, [data.question, data.answer, data.category, data.sort_order || 0]);
+    const result = await query(sql, [
+      data.question,
+      data.answer,
+      data.category,
+      data.sort_order || 0,
+    ]);
     return result.rows[0];
   },
 
@@ -35,11 +44,26 @@ export const SupportManagementRepository = {
     const values: any[] = [];
     let idx = 1;
 
-    if (data.question !== undefined) { fields.push(`question = $${idx++}`); values.push(data.question); }
-    if (data.answer !== undefined) { fields.push(`answer = $${idx++}`); values.push(data.answer); }
-    if (data.category !== undefined) { fields.push(`category = $${idx++}`); values.push(data.category); }
-    if (data.is_active !== undefined) { fields.push(`is_active = $${idx++}`); values.push(data.is_active); }
-    if (data.sort_order !== undefined) { fields.push(`sort_order = $${idx++}`); values.push(data.sort_order); }
+    if (data.question !== undefined) {
+      fields.push(`question = $${idx++}`);
+      values.push(data.question);
+    }
+    if (data.answer !== undefined) {
+      fields.push(`answer = $${idx++}`);
+      values.push(data.answer);
+    }
+    if (data.category !== undefined) {
+      fields.push(`category = $${idx++}`);
+      values.push(data.category);
+    }
+    if (data.is_active !== undefined) {
+      fields.push(`is_active = $${idx++}`);
+      values.push(data.is_active);
+    }
+    if (data.sort_order !== undefined) {
+      fields.push(`sort_order = $${idx++}`);
+      values.push(data.sort_order);
+    }
 
     if (fields.length === 0) return this.findFaqById(id);
 
@@ -59,7 +83,11 @@ export const SupportManagementRepository = {
 
   /* ======================== TICKETS ======================== */
 
-  async findAllTickets(limit: number = 50, offset: number = 0, status?: string): Promise<{ tickets: any[]; total: number }> {
+  async findAllTickets(
+    limit: number = 50,
+    offset: number = 0,
+    status?: string
+  ): Promise<{ tickets: any[]; total: number }> {
     let countSql = `SELECT COUNT(*) FROM support_tickets`;
     let dataSql = `
       SELECT st.*, d.full_name as driver_name, d.phone_number as driver_phone, d.vdrive_id
@@ -179,13 +207,23 @@ export const SupportManagementRepository = {
 
   /* ======================== MESSAGES ======================== */
 
-  async saveMessage(data: { ticket_id: string; sender_id: string; sender_type: string; message: string }): Promise<any> {
+  async saveMessage(data: {
+    ticket_id: string;
+    sender_id: string;
+    sender_type: string;
+    message: string;
+  }): Promise<any> {
     const sql = `
       INSERT INTO support_messages (ticket_id, sender_id, sender_type, message)
       VALUES ($1, $2, $3, $4)
       RETURNING *
     `;
-    const result = await query(sql, [data.ticket_id, data.sender_id, data.sender_type, data.message]);
+    const result = await query(sql, [
+      data.ticket_id,
+      data.sender_id,
+      data.sender_type,
+      data.message,
+    ]);
     return result.rows[0];
   },
 
@@ -210,8 +248,7 @@ export const SupportManagementRepository = {
     return result.rows[0]?.fcm_token || null;
   },
 
-
-   /* ======================== USER-DRIVER-API Tickets ======================== */
+  /* ======================== USER-DRIVER-API Tickets ======================== */
 
   async createUserTicket(data: any): Promise<any> {
     const sql = `
@@ -222,8 +259,15 @@ export const SupportManagementRepository = {
       RETURNING *
     `;
     const result = await query(sql, [
-      data.user_id, data.subject, data.description, data.priority, data.category,
-      data.status, data.channel, data.severity, data.source,
+      data.user_id,
+      data.subject,
+      data.description,
+      data.priority,
+      data.category,
+      data.status,
+      data.channel,
+      data.severity,
+      data.source,
     ]);
     return result.rows[0];
   },
@@ -257,7 +301,11 @@ export const SupportManagementRepository = {
     return result.rows[0]?.fcm_token || null;
   },
 
-  async updateUserTicketStatus(ticketId: string, status: string, adminNotes?: string): Promise<any | null> {
+  async updateUserTicketStatus(
+    ticketId: string,
+    status: string,
+    adminNotes?: string
+  ): Promise<any | null> {
     const sql = `
       UPDATE user_support_tickets
       SET status = $2, admin_notes = COALESCE($3, admin_notes),
@@ -298,7 +346,11 @@ export const SupportManagementRepository = {
     `;
 
     const result = await query(sql, [
-      data.ticket_id, data.sender_id, data.sender_type, data.message, attachmentsJson
+      data.ticket_id,
+      data.sender_id,
+      data.sender_type,
+      data.message,
+      attachmentsJson,
     ]);
 
     return result.rows[0];
@@ -324,5 +376,4 @@ export const SupportManagementRepository = {
     const result = await query(sql, [ticketId]);
     return result.rows[0]?.fcm_token || null;
   },
-
 };

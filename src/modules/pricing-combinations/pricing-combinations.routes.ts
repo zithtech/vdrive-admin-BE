@@ -20,10 +20,7 @@ router.patch(
   PricingCombinationController.updateCombination
 );
 
-router.delete(
-  '/delete/:id',
-  PricingCombinationController.deleteCombination
-);
+router.delete('/delete/:id', PricingCombinationController.deleteCombination);
 
 router.post(
   '/bulk-create',

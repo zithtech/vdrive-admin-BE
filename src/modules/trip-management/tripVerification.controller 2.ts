@@ -13,7 +13,13 @@ export const TripVerificationController = {
    * Get all pending trip verifications
    */
   async getPendingVerifications(req: Request, res: Response, next: NextFunction) {
-    return forwardRequest(req, res, next, config.userDriverApiUrl, '/api/drivers/trip-verification/pending');
+    return forwardRequest(
+      req,
+      res,
+      next,
+      config.userDriverApiUrl,
+      '/api/drivers/trip-verification/pending'
+    );
   },
 
   /**
@@ -21,7 +27,13 @@ export const TripVerificationController = {
    */
   async getVerificationDetails(req: Request, res: Response, next: NextFunction) {
     const { id } = req.params;
-    return forwardRequest(req, res, next, config.userDriverApiUrl, `/api/drivers/trip-verification/details/${id}`);
+    return forwardRequest(
+      req,
+      res,
+      next,
+      config.userDriverApiUrl,
+      `/api/drivers/trip-verification/details/${id}`
+    );
   },
 
   /**
@@ -29,7 +41,13 @@ export const TripVerificationController = {
    */
   async getComparisonData(req: Request, res: Response, next: NextFunction) {
     const { driverId } = req.params;
-    return forwardRequest(req, res, next, config.userDriverApiUrl, `/api/drivers/trip-verification/comparison/${driverId}`);
+    return forwardRequest(
+      req,
+      res,
+      next,
+      config.userDriverApiUrl,
+      `/api/drivers/trip-verification/comparison/${driverId}`
+    );
   },
 
   /**
@@ -40,8 +58,14 @@ export const TripVerificationController = {
       const { id } = req.params;
       // Inject admin_id from authenticated user
       req.body.admin_id = (req as any).user?.id;
-      
-      return forwardRequest(req, res, next, config.userDriverApiUrl, `/api/drivers/trip-verification/verify-granular/${id}`);
+
+      return forwardRequest(
+        req,
+        res,
+        next,
+        config.userDriverApiUrl,
+        `/api/drivers/trip-verification/verify-granular/${id}`
+      );
     } catch (error) {
       next(error);
     }
@@ -52,7 +76,13 @@ export const TripVerificationController = {
    */
   async verifySimple(req: Request, res: Response, next: NextFunction) {
     const { id } = req.params;
-    return forwardRequest(req, res, next, config.userDriverApiUrl, `/api/drivers/trip-verification/verify/${id}`);
+    return forwardRequest(
+      req,
+      res,
+      next,
+      config.userDriverApiUrl,
+      `/api/drivers/trip-verification/verify/${id}`
+    );
   },
 
   /**
@@ -60,6 +90,12 @@ export const TripVerificationController = {
    */
   async getByTripId(req: Request, res: Response, next: NextFunction) {
     const { tripId } = req.params;
-    return forwardRequest(req, res, next, config.userDriverApiUrl, `/api/drivers/trip-verification/trip/${tripId}`);
+    return forwardRequest(
+      req,
+      res,
+      next,
+      config.userDriverApiUrl,
+      `/api/drivers/trip-verification/trip/${tripId}`
+    );
   },
 };

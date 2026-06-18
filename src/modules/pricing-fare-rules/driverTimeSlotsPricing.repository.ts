@@ -16,7 +16,7 @@ export const DriverTimeSlotsPricingRepository = {
   ): Promise<{ data: DriverTimeSlotsPricing[]; total: number }> {
     const offset = (page - 1) * limit;
     const params: any[] = [];
-    let whereConditions: string[] = [];
+    const whereConditions: string[] = [];
     let paramIndex = 1;
 
     // Build dynamic WHERE conditions

@@ -2,7 +2,7 @@ import { Joi } from 'celebrate';
 
 export const CouponValidation = {
   idValidation: Joi.object().keys({
-    id: Joi.string().uuid().required()
+    id: Joi.string().uuid().required(),
   }),
 
   createValidation: Joi.object().keys({
@@ -44,13 +44,13 @@ export const CouponValidation = {
   validateAndApplyValidation: Joi.object({
     code: Joi.string().required(),
     userId: Joi.string().required(),
-    amount: Joi.number().min(0).required()
+    amount: Joi.number().min(0).required(),
   }),
-  
+
   recordUsageValidation: Joi.object({
     coupon_id: Joi.string().uuid().required(),
     user_id: Joi.string().required(),
     trip_id: Joi.string().required(),
-    discount_applied: Joi.number().min(0).required()
-  })
+    discount_applied: Joi.number().min(0).required(),
+  }),
 };

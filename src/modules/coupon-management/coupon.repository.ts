@@ -12,9 +12,7 @@ export const CouponRepository = {
       [limit, offset]
     );
 
-    const totalRes = await query(
-      `SELECT COUNT(*) AS total FROM coupons`
-    );
+    const totalRes = await query(`SELECT COUNT(*) AS total FROM coupons`);
 
     return {
       coupons: coupons.rows,
@@ -23,18 +21,12 @@ export const CouponRepository = {
   },
 
   async getById(id: string) {
-    const res = await query(
-      `SELECT * FROM coupons WHERE id=$1`,
-      [id]
-    );
+    const res = await query(`SELECT * FROM coupons WHERE id=$1`, [id]);
     return res.rows[0];
   },
 
   async getByCode(code: string) {
-    const res = await query(
-      `SELECT * FROM coupons WHERE code=$1`,
-      [code]
-    );
+    const res = await query(`SELECT * FROM coupons WHERE code=$1`, [code]);
     return res.rows[0];
   },
 
@@ -63,12 +55,12 @@ export const CouponRepository = {
   },
 
   async update(id: string, data: Partial<Coupon>) {
-    const keys = Object.keys(data).filter(k => data[k as keyof Coupon] !== undefined);
+    const keys = Object.keys(data).filter((k) => data[k as keyof Coupon] !== undefined);
     if (keys.length === 0) return this.getById(id);
 
     const setStr = keys.map((k, i) => `${k}=$${i + 1}`).join(', ');
-    const values = keys.map(k => data[k as keyof Coupon]);
-    
+    const values = keys.map((k) => data[k as keyof Coupon]);
+
     // Add id to the end of values for the WHERE clause
     values.push(id as any);
 
@@ -93,10 +85,7 @@ export const CouponRepository = {
   },
 
   async delete(id: string) {
-    await query(
-      `DELETE FROM coupons WHERE id=$1`,
-      [id]
-    );
+    await query(`DELETE FROM coupons WHERE id=$1`, [id]);
   },
 
   async recordUsage(data: CouponUsage) {
@@ -119,10 +108,9 @@ export const CouponRepository = {
   },
 
   async getTotalUsageCount(couponId: string) {
-    const res = await query(
-      `SELECT COUNT(*) AS total FROM coupon_usages WHERE coupon_id=$1`,
-      [couponId]
-    );
+    const res = await query(`SELECT COUNT(*) AS total FROM coupon_usages WHERE coupon_id=$1`, [
+      couponId,
+    ]);
     return Number(res.rows[0].total);
   },
 
@@ -150,5 +138,5 @@ export const CouponRepository = {
       [target, userId || null, couponId]
     );
     return res.rows[0];
-  }
+  },
 };

@@ -88,13 +88,13 @@ export const CouponController = {
   async recordUsage(req: Request, res: Response) {
     try {
       const result = await CouponService.recordCouponUsage(req.body);
-      
+
       // Notify user app via webhook about successful coupon application
       await notifyUserBackend('COUPON_APPLIED', {
         userId: req.body.user_id,
         couponId: req.body.coupon_id,
         tripId: req.body.trip_id,
-        discountApplied: req.body.discount_applied
+        discountApplied: req.body.discount_applied,
       });
 
       res.status(201).json(result);
@@ -112,5 +112,5 @@ export const CouponController = {
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
-  }
+  },
 };

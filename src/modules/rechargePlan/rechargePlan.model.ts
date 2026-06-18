@@ -1,4 +1,3 @@
-
 export interface RechargePlan {
   id?: number;
   plan_name: string;
@@ -12,4 +11,3 @@ export interface RechargePlan {
   is_active: boolean;
   created_at?: Date;
 }
-

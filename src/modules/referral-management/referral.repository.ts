@@ -12,7 +12,10 @@ export const ReferralRepository = {
   },
 
   async getByUserType(userType: string) {
-    const result = await query('SELECT * FROM referral_configurations WHERE user_type = $1 AND is_active = TRUE', [userType]);
+    const result = await query(
+      'SELECT * FROM referral_configurations WHERE user_type = $1 AND is_active = TRUE',
+      [userType]
+    );
     return result.rows[0];
   },
 
@@ -31,15 +34,22 @@ export const ReferralRepository = {
        (user_type, referrer_reward, referrer_reward_type, referee_reward, referee_reward_type, is_active)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [user_type, referrer_reward, referrer_reward_type, referee_reward, referee_reward_type, is_active ?? true]
+      [
+        user_type,
+        referrer_reward,
+        referrer_reward_type,
+        referee_reward,
+        referee_reward_type,
+        is_active ?? true,
+      ]
     );
     return result.rows[0];
   },
 
   async update(id: string, data: any) {
-    const fields = Object.keys(data).filter(key => data[key] !== undefined);
+    const fields = Object.keys(data).filter((key) => data[key] !== undefined);
     const setClause = fields.map((field, index) => `"${field}" = $${index + 2}`).join(', ');
-    const values = fields.map(field => data[field]);
+    const values = fields.map((field) => data[field]);
 
     const result = await query(
       `UPDATE referral_configurations SET ${setClause}, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *`,
@@ -64,9 +74,10 @@ export const ReferralRepository = {
 
   async getReferralLogs(userType: 'CUSTOMER' | 'DRIVER') {
     const tableName = userType === 'DRIVER' ? 'drivers' : 'users';
-    
+
     // Both drivers and users have first_name, last_name, and a generated full_name column
-    const result = await query(`
+    const result = await query(
+      `
       SELECT 
         r.id,
         r.referrer_id,
@@ -86,7 +97,9 @@ export const ReferralRepository = {
       LEFT JOIN ${tableName} ree ON r.referee_id = ree.id
       WHERE r.referral_type = $1
       ORDER BY r.created_at DESC
-    `, [userType]);
+    `,
+      [userType]
+    );
     return result.rows;
-  }
+  },
 };

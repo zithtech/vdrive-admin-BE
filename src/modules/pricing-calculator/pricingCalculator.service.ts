@@ -22,7 +22,7 @@ export const PricingCalculatorService = {
 
       const currentVal = current[0] * 60 + current[1];
       const startVal = start[0] * 60 + start[1];
-      let endVal = end[0] * 60 + end[1];
+      const endVal = end[0] * 60 + end[1];
 
       // Handle overnight slots (e.g., 22:00 - 05:00)
       if (endVal < startVal) {
@@ -138,19 +138,35 @@ export const PricingCalculatorService = {
       }
 
       // 2. Determine Per KM and Per Min components
-      const per_km = matchingRateDetail && matchingRateDetail.timing_rate ? parseFloat(matchingRateDetail.timing_rate)
-        : (ride_type === 'normal' ? 10 : ride_type === 'elite' ? 12 : 18);
+      const per_km =
+        matchingRateDetail && matchingRateDetail.timing_rate
+          ? parseFloat(matchingRateDetail.timing_rate)
+          : ride_type === 'normal'
+            ? 10
+            : ride_type === 'elite'
+              ? 12
+              : 18;
 
-      const per_min = matchingRateDetail && matchingRateDetail.waiting_fee ? parseFloat(matchingRateDetail.waiting_fee)
-        : (ride_type === 'normal' ? 2 : ride_type === 'elite' ? 3 : 4);
+      const per_min =
+        matchingRateDetail && matchingRateDetail.waiting_fee
+          ? parseFloat(matchingRateDetail.waiting_fee)
+          : ride_type === 'normal'
+            ? 2
+            : ride_type === 'elite'
+              ? 3
+              : 4;
 
       // Surge Multiplier from Hotspot or Fare Rule
-      const surge_multiplier = fareRule && fareRule.hotspot_multiplier ? parseFloat(fareRule.hotspot_multiplier)
-        : (fareRule && fareRule.rule_multiplier ? parseFloat(fareRule.rule_multiplier) : 1.0);
+      const surge_multiplier =
+        fareRule && fareRule.hotspot_multiplier
+          ? parseFloat(fareRule.hotspot_multiplier)
+          : fareRule && fareRule.rule_multiplier
+            ? parseFloat(fareRule.rule_multiplier)
+            : 1.0;
 
       // 3. Final Fare Calculation (Subtotal)
       let distance_fare = 0;
-      // If we used Matrix Base Fare, we use Matrix Extra KM rate. 
+      // If we used Matrix Base Fare, we use Matrix Extra KM rate.
       // Otherwise use the distance rate from rate settings.
       if (matrixBaseFare > 0 && baseDistance > 0 && !matchingTimeSlot) {
         const extra_distance = Math.max(0, distance_km - baseDistance);
@@ -180,7 +196,7 @@ export const PricingCalculatorService = {
         ride_type,
         fare_details: {
           base_fare,
-          per_km: (matrixBaseFare > 0 && !matchingTimeSlot) ? (extraKmRate || per_km) : per_km,
+          per_km: matrixBaseFare > 0 && !matchingTimeSlot ? extraKmRate || per_km : per_km,
           per_min,
           distance_fare,
           time_fare,
@@ -188,8 +204,8 @@ export const PricingCalculatorService = {
           subtotal,
           taxes: taxDetails,
           total_taxes: totalTaxes,
-          total_fare
-        }
+          total_fare,
+        },
       });
     }
 
@@ -220,12 +236,11 @@ export const PricingCalculatorService = {
         matched_count: timeSlotPricings.length,
         available_slots: timeSlotPricings,
       },
-      taxes_applied: activeTaxes.map(t => ({
+      taxes_applied: activeTaxes.map((t) => ({
         tax_name: t.tax_name,
-        percentage: t.percentage
+        percentage: t.percentage,
       })),
-      ride_options: rideOptions
+      ride_options: rideOptions,
     };
-  }
+  },
 };
-

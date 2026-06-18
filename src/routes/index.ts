@@ -85,4 +85,3 @@ router.get('/internal/trip-alert', (req, res) => {
 });
 
 export default router;
-

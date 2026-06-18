@@ -121,7 +121,7 @@ export const initSocket = (httpServer: HttpServer): Server => {
       }
     });
 
-        socket.on('USER_AGENT_REQUESTED', (ticketData) => {
+    socket.on('USER_AGENT_REQUESTED', (ticketData) => {
       logger.info('New agent request received from User Backend:', ticketData);
       if (io) {
         // Notify all admins about the new ticket
@@ -134,7 +134,10 @@ export const initSocket = (httpServer: HttpServer): Server => {
       if (io) {
         const { ticketId } = data;
         // Notify the specific ticket room and all admins
-        io.to(`support_ticket_${ticketId}`).emit('TICKET_STATUS_UPDATE', { ticketId, status: 'closed' });
+        io.to(`support_ticket_${ticketId}`).emit('TICKET_STATUS_UPDATE', {
+          ticketId,
+          status: 'closed',
+        });
         io.to('admin').emit('ADMIN_SUPPORT_TICKET_CLOSED', data);
       }
     });
@@ -143,7 +146,10 @@ export const initSocket = (httpServer: HttpServer): Server => {
       if (io) {
         const { ticketId } = data;
         // Notify the specific ticket room and all admins
-        io.to(`support_ticket_${ticketId}`).emit('TICKET_STATUS_UPDATE', { ticketId, status: 'closed' });
+        io.to(`support_ticket_${ticketId}`).emit('TICKET_STATUS_UPDATE', {
+          ticketId,
+          status: 'closed',
+        });
         io.to('admin').emit('ADMIN_USER_SUPPORT_TICKET_CLOSED', data);
       }
     });
@@ -214,7 +220,9 @@ export const initSocket = (httpServer: HttpServer): Server => {
     if (token && token === config.internalServiceSecret) {
       next();
     } else {
-      logger.warn(`Internal socket connection rejected: Invalid or missing token. ID: ${socket.id}`);
+      logger.warn(
+        `Internal socket connection rejected: Invalid or missing token. ID: ${socket.id}`
+      );
       next(new Error('Authentication failed: Invalid internal token'));
     }
   });
@@ -238,7 +246,6 @@ export const initSocket = (httpServer: HttpServer): Server => {
     const userName = socket.data.user?.name || 'Unknown';
     const userId = socket.data.user?.id || 'Unknown';
 
-
     // Add to user map
     if (userId !== 'Unknown') {
       if (!userSocketMap.has(userId)) {
@@ -248,12 +255,11 @@ export const initSocket = (httpServer: HttpServer): Server => {
     }
 
     // Join admin sockets to a dedicated room based on role
-    socket.on("JOIN_ADMIN_ROOM", () => {
-      socket.join("admin");
+    socket.on('JOIN_ADMIN_ROOM', () => {
+      socket.join('admin');
 
       logger.info(`🔐 Admin socket ${socket.id} joined admin room`);
     });
-
 
     logger.info(`🔌 Socket connected: ${socket.id} (User: ${userName} | ID: ${userId})`);
 
@@ -278,28 +284,31 @@ export const initSocket = (httpServer: HttpServer): Server => {
       logger.info(`🎧 Admin ${userName} joined support room: ${room}`);
     });
 
-    socket.on('sendSupportMessage', async (data: { ticketId: string; senderId: string; senderType: string; message: string }) => {
-      console.log('Received support message via socket:', data);
-      const { ticketId, senderId, senderType, message } = data;
-      const room = `support_ticket_${ticketId}`;
+    socket.on(
+      'sendSupportMessage',
+      async (data: { ticketId: string; senderId: string; senderType: string; message: string }) => {
+        console.log('Received support message via socket:', data);
+        const { ticketId, senderId, senderType, message } = data;
+        const room = `support_ticket_${ticketId}`;
 
-      try {
-        // 1. Broadcast to other admin sockets in the same room
-        socket.to(room).emit('receiveSupportMessage', {
-          ...data,
-          id: Date.now().toString(), // Temporary ID for immediate feedback
-          created_at: new Date().toISOString()
-        });
+        try {
+          // 1. Broadcast to other admin sockets in the same room
+          socket.to(room).emit('receiveSupportMessage', {
+            ...data,
+            id: Date.now().toString(), // Temporary ID for immediate feedback
+            created_at: new Date().toISOString(),
+          });
 
-        // 2. Notify User Backend via /internal namespace
-        const internalNsp = io?.of('/internal');
-        internalNsp?.emit('SUPPORT_MESSAGE_FROM_ADMIN', data);
+          // 2. Notify User Backend via /internal namespace
+          const internalNsp = io?.of('/internal');
+          internalNsp?.emit('SUPPORT_MESSAGE_FROM_ADMIN', data);
 
-        logger.info(`📬 Forwarded support message for ticket ${ticketId} to User Backend`);
-      } catch (err) {
-        logger.error(`Failed to handle sendSupportMessage: ${err}`);
+          logger.info(`📬 Forwarded support message for ticket ${ticketId} to User Backend`);
+        } catch (err) {
+          logger.error(`Failed to handle sendSupportMessage: ${err}`);
+        }
       }
-    });
+    );
 
     socket.on('error', (error) => {
       logger.error(`Socket error (${socket.id}):`, error);

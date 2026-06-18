@@ -1,4 +1,3 @@
-
 import { Request, Response, NextFunction } from 'express';
 import { TaxService } from './tax.service';
 
@@ -12,7 +11,7 @@ export const TaxController = {
       const totalPages = Math.ceil(total / limit);
 
       return res.status(200).json({
-        message: "Taxes fetched successfully",
+        message: 'Taxes fetched successfully',
         data: taxes,
         pagination: {
           page,
@@ -30,11 +29,11 @@ export const TaxController = {
     try {
       const tax = await TaxService.getTaxById(req.params.id);
       if (!tax) {
-        return res.status(404).json({ message: "Tax not found" });
+        return res.status(404).json({ message: 'Tax not found' });
       }
       return res.status(200).json({
-        message: "Tax fetched successfully",
-        data: tax
+        message: 'Tax fetched successfully',
+        data: tax,
       });
     } catch (err) {
       next(err);
@@ -45,8 +44,8 @@ export const TaxController = {
     try {
       const tax = await TaxService.createTax(req.body);
       return res.status(201).json({
-        message: "Tax created successfully",
-        data: tax
+        message: 'Tax created successfully',
+        data: tax,
       });
     } catch (err) {
       next(err);
@@ -57,11 +56,11 @@ export const TaxController = {
     try {
       const tax = await TaxService.updateTax(req.params.id, req.body);
       if (!tax) {
-        return res.status(404).json({ message: "Tax not found" });
+        return res.status(404).json({ message: 'Tax not found' });
       }
       return res.status(200).json({
-        message: "Tax updated successfully",
-        data: tax
+        message: 'Tax updated successfully',
+        data: tax,
       });
     } catch (err) {
       next(err);
@@ -73,11 +72,11 @@ export const TaxController = {
       const { is_active } = req.body;
       const tax = await TaxService.toggleStatus(req.params.id, is_active);
       if (!tax) {
-        return res.status(404).json({ message: "Tax not found" });
+        return res.status(404).json({ message: 'Tax not found' });
       }
       return res.status(200).json({
-        message: "Tax status updated successfully",
-        data: tax
+        message: 'Tax status updated successfully',
+        data: tax,
       });
     } catch (err) {
       next(err);
@@ -88,7 +87,7 @@ export const TaxController = {
     try {
       await TaxService.deleteTax(req.params.id);
       return res.status(200).json({
-        message: "Tax deleted successfully",
+        message: 'Tax deleted successfully',
       });
     } catch (err) {
       next(err);
