@@ -1,5 +1,6 @@
 import vision from '@google-cloud/vision';
 import path from 'path';
+import config from '../config';
 
 // Initialize the Google Cloud Vision client
 // The GOOGLE_APPLICATION_CREDENTIALS environment variable should point to the JSON key
@@ -42,7 +43,7 @@ export const extractDocumentData = async (
 
     let fetchUrl = imageUrl;
     if (fetchUrl.startsWith('/')) {
-      fetchUrl = `http://localhost:5006${fetchUrl}`;
+      fetchUrl = `${config.userDriverApiUrl}${fetchUrl}`;
     }
 
     let requestBody: any = fetchUrl;

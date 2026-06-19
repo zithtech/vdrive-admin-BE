@@ -3,7 +3,7 @@ import config from '../../config';
 import { logger } from '../../shared/logger';
 
 const transformUrl = (url: string) => {
-  if (url && typeof url === 'string' && url.includes('s3.eu-north-1.amazonaws.com')) {
+  if (url && typeof url === 'string' && url.includes('amazonaws.com')) {
     // Point to the User-Driver-API proxy
     return `${config.userDriverApiUrl}/api/media/proxy?url=${encodeURIComponent(url)}`;
   }
