@@ -5,5 +5,6 @@ export interface DriverTimeSlotsPricing {
   day: string;
   from_time: string; // time format HH:MM:SS
   to_time: string; // time format HH:MM:SS
-  price: number;
+  per_km_rate: number;
+  per_hour_rate: number;
 }

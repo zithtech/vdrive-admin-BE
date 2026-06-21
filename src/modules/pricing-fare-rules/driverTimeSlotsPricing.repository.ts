@@ -86,12 +86,13 @@ export const DriverTimeSlotsPricingRepository = {
     day: string;
     from_time: string;
     to_time: string;
-    price: number;
+    per_km_rate: number;
+    per_hour_rate?: number;
   }): Promise<DriverTimeSlotsPricing> {
     const result = await query(
-      `INSERT INTO driver_time_slots_pricing 
-        (price_and_fare_rules_id, driver_types, day, from_time, to_time, price) 
-       VALUES ($1, $2, $3, $4, $5, $6) 
+      `INSERT INTO driver_time_slots_pricing
+        (price_and_fare_rules_id, driver_types, day, from_time, to_time, per_km_rate, per_hour_rate)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
       [
         data.price_and_fare_rules_id,
@@ -99,7 +100,8 @@ export const DriverTimeSlotsPricingRepository = {
         data.day.toLowerCase(),
         data.from_time,
         data.to_time,
-        data.price,
+        data.per_km_rate,
+        data.per_hour_rate ?? 0,
       ]
     );
     return result.rows[0];
@@ -115,7 +117,8 @@ export const DriverTimeSlotsPricingRepository = {
       day: string;
       from_time: string;
       to_time: string;
-      price: number;
+      per_km_rate: number;
+      per_hour_rate?: number;
     }>
   ): Promise<DriverTimeSlotsPricing[]> {
     const values: string[] = [];
@@ -124,7 +127,7 @@ export const DriverTimeSlotsPricingRepository = {
 
     slots.forEach((slot) => {
       values.push(
-        `($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4}, $${paramIndex + 5})`
+        `($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4}, $${paramIndex + 5}, $${paramIndex + 6})`
       );
       params.push(
         slot.price_and_fare_rules_id,
@@ -132,15 +135,16 @@ export const DriverTimeSlotsPricingRepository = {
         slot.day.toLowerCase(),
         slot.from_time,
         slot.to_time,
-        slot.price
+        slot.per_km_rate,
+        slot.per_hour_rate ?? 0
       );
-      paramIndex += 6;
+      paramIndex += 7;
     });
 
     const result = await query(
-      `INSERT INTO driver_time_slots_pricing 
-        (price_and_fare_rules_id, driver_types, day, from_time, to_time, price) 
-       VALUES ${values.join(', ')} 
+      `INSERT INTO driver_time_slots_pricing
+        (price_and_fare_rules_id, driver_types, day, from_time, to_time, per_km_rate, per_hour_rate)
+       VALUES ${values.join(', ')}
        RETURNING *`,
       params
     );
@@ -157,7 +161,8 @@ export const DriverTimeSlotsPricingRepository = {
       day?: string;
       from_time?: string;
       to_time?: string;
-      price?: number;
+      per_km_rate?: number;
+      per_hour_rate?: number;
     }
   ): Promise<DriverTimeSlotsPricing> {
     const fields: string[] = [];
@@ -184,9 +189,14 @@ export const DriverTimeSlotsPricingRepository = {
       params.push(data.to_time);
       paramIndex++;
     }
-    if (data.price !== undefined) {
-      fields.push(`price = $${paramIndex}`);
-      params.push(data.price);
+    if (data.per_km_rate !== undefined) {
+      fields.push(`per_km_rate = $${paramIndex}`);
+      params.push(data.per_km_rate);
+      paramIndex++;
+    }
+    if (data.per_hour_rate !== undefined) {
+      fields.push(`per_hour_rate = $${paramIndex}`);
+      params.push(data.per_hour_rate);
       paramIndex++;
     }
 

@@ -53,7 +53,7 @@ export const PricingFareRulesRepository = {
 
     // Count total records
     const countQuery = `
-      SELECT COUNT(*) 
+      SELECT COUNT(*)
       FROM price_and_fare_rules p
       LEFT JOIN areas a ON p.area_id = a.id
       LEFT JOIN districts d ON p.district_id = d.id
@@ -64,7 +64,7 @@ export const PricingFareRulesRepository = {
     const total = parseInt(countResult.rows[0].count, 10);
 
     const dataQuery = `
-    SELECT 
+    SELECT
         p.id,
         c.name AS country_name,
         c.id AS country_id,
@@ -75,17 +75,17 @@ export const PricingFareRulesRepository = {
         a.name AS area_name,
         a.id AS area_id,
         a.pincode AS pincode,
-        p.global_price,
+        p.per_km_price,
+        p.per_hour_price,
+        p.minimum_fare,
+        p.one_way_return_pct,
         p.is_hotspot,
         h.id AS hotspot_id,
         h.hotspot_name,
-        p.multiplier,
-        p.extra_km_step,
-        p.extra_km_price,
-        p.extra_km_start_multiplier
+        p.multiplier
         ${
           includeTimeSlots
-            ? `, 
+            ? `,
         COALESCE(
             jsonb_agg(
                 jsonb_build_object(
@@ -93,7 +93,8 @@ export const PricingFareRulesRepository = {
                     'day', ts.day,
                     'from_time', ts.from_time,
                     'to_time', ts.to_time,
-                    'price', ts.price,
+                    'per_km_rate', ts.per_km_rate,
+                    'per_hour_rate', ts.per_hour_rate,
                     'driver_types', ts.driver_types
                 )
             ) FILTER (WHERE ts.id IS NOT NULL), '[]'
@@ -105,7 +106,7 @@ export const PricingFareRulesRepository = {
     JOIN districts d ON p.district_id = d.id
     JOIN states s ON d.state_id = s.id
     JOIN countries c ON s.country_id = c.id
-    LEFT JOIN hotspots h ON p.hotspot_id = h.id 
+    LEFT JOIN hotspots h ON p.hotspot_id = h.id
     ${includeTimeSlots ? 'LEFT JOIN driver_time_slots_pricing ts ON p.id = ts.price_and_fare_rules_id' : ''}
     ${whereClause}
     ${includeTimeSlots ? 'GROUP BY p.id, c.id, s.id, d.id, a.id, h.id' : ''}
@@ -123,7 +124,7 @@ export const PricingFareRulesRepository = {
    */
   async getPricingFareRuleById(id: string): Promise<PricingFareRule | null> {
     const result = await query(
-      'SELECT id, district_id, area_id, global_price, is_hotspot, hotspot_id, multiplier, extra_km_step, extra_km_price, extra_km_start_multiplier FROM price_and_fare_rules WHERE id = $1',
+      'SELECT id, district_id, area_id, per_km_price, per_hour_price, minimum_fare, one_way_return_pct, is_hotspot, hotspot_id, multiplier FROM price_and_fare_rules WHERE id = $1',
       [id]
     );
     return result.rows[0] || null;
@@ -134,7 +135,7 @@ export const PricingFareRulesRepository = {
    */
   async getFareSummaryById(id: string): Promise<FareSummary | null> {
     const queryText = `
-      SELECT 
+      SELECT
         p.id,
         c.name AS country_name,
         c.id AS country_id,
@@ -145,14 +146,14 @@ export const PricingFareRulesRepository = {
         a.name AS area_name,
         a.id AS area_id,
         a.pincode AS pincode,
-        p.global_price,
+        p.per_km_price,
+        p.per_hour_price,
+        p.minimum_fare,
+        p.one_way_return_pct,
         p.is_hotspot,
         h.id AS hotspot_id,
         h.hotspot_name,
-        p.multiplier,
-        p.extra_km_step,
-        p.extra_km_price,
-        p.extra_km_start_multiplier
+        p.multiplier
       FROM price_and_fare_rules p
       LEFT JOIN areas a ON p.area_id = a.id
       JOIN districts d ON p.district_id = d.id
@@ -174,29 +175,29 @@ export const PricingFareRulesRepository = {
   async createPricingFareRule(data: {
     district_id: string;
     area_id?: string | null;
-    global_price: number;
+    per_km_price: number;
+    per_hour_price?: number;
+    minimum_fare?: number;
+    one_way_return_pct?: number;
     is_hotspot: boolean;
     hotspot_id?: string | null;
     multiplier?: number | null;
-    extra_km_step?: number;
-    extra_km_price?: number;
-    extra_km_start_multiplier?: number;
   }): Promise<PricingFareRule> {
     const result = await query(
       `INSERT INTO price_and_fare_rules
-        (district_id, area_id, global_price, is_hotspot, hotspot_id, multiplier, extra_km_step, extra_km_price, extra_km_start_multiplier)
+        (district_id, area_id, per_km_price, per_hour_price, minimum_fare, one_way_return_pct, is_hotspot, hotspot_id, multiplier)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-       RETURNING id, district_id, area_id, global_price, is_hotspot, hotspot_id, multiplier, extra_km_step, extra_km_price, extra_km_start_multiplier`,
+       RETURNING id, district_id, area_id, per_km_price, per_hour_price, minimum_fare, one_way_return_pct, is_hotspot, hotspot_id, multiplier`,
       [
         data.district_id,
         data.area_id || null,
-        data.global_price,
+        data.per_km_price,
+        data.per_hour_price ?? 0,
+        data.minimum_fare ?? 0,
+        data.one_way_return_pct ?? 0,
         data.is_hotspot,
         data.hotspot_id || null,
         data.multiplier || null,
-        data.extra_km_step ?? 5,
-        data.extra_km_price ?? 10,
-        data.extra_km_start_multiplier ?? 1,
       ]
     );
     return result.rows[0];
@@ -210,13 +211,13 @@ export const PricingFareRulesRepository = {
     data: {
       district_id?: string;
       area_id?: string | null;
-      global_price?: number;
+      per_km_price?: number;
+      per_hour_price?: number;
+      minimum_fare?: number;
+      one_way_return_pct?: number;
       is_hotspot?: boolean;
       hotspot_id?: string | null;
       multiplier?: number | null;
-      extra_km_step?: number;
-      extra_km_price?: number;
-      extra_km_start_multiplier?: number;
     }
   ): Promise<PricingFareRule> {
     const fields: string[] = [];
@@ -233,9 +234,24 @@ export const PricingFareRulesRepository = {
       params.push(data.area_id);
       paramIndex++;
     }
-    if (data.global_price !== undefined) {
-      fields.push(`global_price = $${paramIndex}`);
-      params.push(data.global_price);
+    if (data.per_km_price !== undefined) {
+      fields.push(`per_km_price = $${paramIndex}`);
+      params.push(data.per_km_price);
+      paramIndex++;
+    }
+    if (data.per_hour_price !== undefined) {
+      fields.push(`per_hour_price = $${paramIndex}`);
+      params.push(data.per_hour_price);
+      paramIndex++;
+    }
+    if (data.minimum_fare !== undefined) {
+      fields.push(`minimum_fare = $${paramIndex}`);
+      params.push(data.minimum_fare);
+      paramIndex++;
+    }
+    if (data.one_way_return_pct !== undefined) {
+      fields.push(`one_way_return_pct = $${paramIndex}`);
+      params.push(data.one_way_return_pct);
       paramIndex++;
     }
     if (data.is_hotspot !== undefined) {
@@ -253,28 +269,13 @@ export const PricingFareRulesRepository = {
       params.push(data.multiplier);
       paramIndex++;
     }
-    if (data.extra_km_step !== undefined) {
-      fields.push(`extra_km_step = $${paramIndex}`);
-      params.push(data.extra_km_step);
-      paramIndex++;
-    }
-    if (data.extra_km_price !== undefined) {
-      fields.push(`extra_km_price = $${paramIndex}`);
-      params.push(data.extra_km_price);
-      paramIndex++;
-    }
-    if (data.extra_km_start_multiplier !== undefined) {
-      fields.push(`extra_km_start_multiplier = $${paramIndex}`);
-      params.push(data.extra_km_start_multiplier);
-      paramIndex++;
-    }
 
     if (fields.length === 0) {
       throw new Error('No fields to update');
     }
 
     const result = await query(
-      `UPDATE price_and_fare_rules SET ${fields.join(', ')} WHERE id = $1 RETURNING id, district_id, area_id, global_price, is_hotspot, hotspot_id, multiplier, extra_km_step, extra_km_price, extra_km_start_multiplier`,
+      `UPDATE price_and_fare_rules SET ${fields.join(', ')} WHERE id = $1 RETURNING id, district_id, area_id, per_km_price, per_hour_price, minimum_fare, one_way_return_pct, is_hotspot, hotspot_id, multiplier`,
       params
     );
     return result.rows[0];

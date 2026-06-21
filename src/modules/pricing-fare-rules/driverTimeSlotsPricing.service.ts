@@ -32,11 +32,15 @@ export const DriverTimeSlotsPricingService = {
     day: string;
     from_time: string;
     to_time: string;
-    price: number;
+    per_km_rate: number;
+    per_hour_rate?: number;
   }): Promise<DriverTimeSlotsPricing> {
-    // Validate price
-    if (data.price < 0) {
-      throw { statusCode: 400, message: 'Price cannot be negative' };
+    // Validate rates
+    if (data.per_km_rate < 0) {
+      throw { statusCode: 400, message: 'Rate per km cannot be negative' };
+    }
+    if (data.per_hour_rate !== undefined && data.per_hour_rate < 0) {
+      throw { statusCode: 400, message: 'Rate per hour cannot be negative' };
     }
 
     // Validate time range
@@ -70,13 +74,14 @@ export const DriverTimeSlotsPricingService = {
       day: string;
       from_time: string;
       to_time: string;
-      price: number;
+      per_km_rate: number;
+      per_hour_rate?: number;
     }>
   ): Promise<DriverTimeSlotsPricing[]> {
     // Validate all slots before inserting
     for (const slot of slots) {
-      if (slot.price < 0) {
-        throw { statusCode: 400, message: 'Price cannot be negative' };
+      if (slot.per_km_rate < 0) {
+        throw { statusCode: 400, message: 'Rate per km cannot be negative' };
       }
 
       if (slot.from_time >= slot.to_time) {
@@ -140,7 +145,8 @@ export const DriverTimeSlotsPricingService = {
       day?: string;
       from_time?: string;
       to_time?: string;
-      price?: number;
+      per_km_rate?: number;
+      per_hour_rate?: number;
     }
   ): Promise<DriverTimeSlotsPricing> {
     // Check if time slot exists
@@ -152,9 +158,12 @@ export const DriverTimeSlotsPricingService = {
     // Merge existing data with updates for validation
     const mergedData = { ...existing, ...data };
 
-    // Validate price if being updated
-    if (data.price !== undefined && data.price < 0) {
-      throw { statusCode: 400, message: 'Price cannot be negative' };
+    // Validate rates if being updated
+    if (data.per_km_rate !== undefined && data.per_km_rate < 0) {
+      throw { statusCode: 400, message: 'Rate per km cannot be negative' };
+    }
+    if (data.per_hour_rate !== undefined && data.per_hour_rate < 0) {
+      throw { statusCode: 400, message: 'Rate per hour cannot be negative' };
     }
 
     // Validate time range

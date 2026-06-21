@@ -3,6 +3,55 @@ import { PricingFareRule, FareSummary } from './pricingFareRules.model';
 import { DriverTimeSlotsPricingRepository } from './driverTimeSlotsPricing.repository';
 import { ExtraKmCheckpointsRepository } from './extraKmCheckpoints.repository';
 
+interface CheckpointInput {
+  from_km: number;
+  price: number;
+  sort_order: number;
+}
+
+interface TimeSlotInput {
+  driver_types: string;
+  day: string;
+  from_time: string;
+  to_time: string;
+  per_km_rate: number;
+  per_hour_rate?: number;
+}
+
+interface FareRuleFields {
+  district_id?: string;
+  area_id?: string | null;
+  per_km_price?: number;
+  per_hour_price?: number;
+  minimum_fare?: number;
+  one_way_return_pct?: number;
+  is_hotspot?: boolean;
+  hotspot_id?: string | null;
+  multiplier?: number | null;
+}
+
+// Validate the numeric fare-model fields shared by create/update
+function validateFareFields(data: FareRuleFields) {
+  if (data.per_km_price !== undefined && data.per_km_price < 0) {
+    throw { statusCode: 400, message: 'Price per km cannot be negative' };
+  }
+  if (data.per_hour_price !== undefined && data.per_hour_price < 0) {
+    throw { statusCode: 400, message: 'Price per hour cannot be negative' };
+  }
+  if (data.minimum_fare !== undefined && data.minimum_fare < 0) {
+    throw { statusCode: 400, message: 'Minimum fare cannot be negative' };
+  }
+  if (
+    data.one_way_return_pct !== undefined &&
+    (data.one_way_return_pct < 0 || data.one_way_return_pct > 100)
+  ) {
+    throw { statusCode: 400, message: 'One-way return % must be between 0 and 100' };
+  }
+  if (data.multiplier !== null && data.multiplier !== undefined && data.multiplier <= 0) {
+    throw { statusCode: 400, message: 'Multiplier must be greater than 0' };
+  }
+}
+
 export const PricingFareRulesService = {
   async getPricingFareRules(
     filters: {
@@ -15,23 +64,7 @@ export const PricingFareRulesService = {
     limit: number,
     includeTimeSlots = false
   ): Promise<{ data: FareSummary[]; total: number }> {
-    const result = await PricingFareRulesRepository.getPricingFareRules(
-      filters,
-      page,
-      limit,
-      includeTimeSlots
-    );
-
-    // Optionally include time slots for each fare rule
-    // if (includeTimeSlots && result.data.length > 0) {
-    //   for (const fareRule of result.data) {
-    //     fareRule.time_slots = await DriverTimeSlotsPricingRepository.getByPricingFareRuleId(
-    //       fareRule.id
-    //     );
-    //   }
-    // }
-
-    return result;
+    return PricingFareRulesRepository.getPricingFareRules(filters, page, limit, includeTimeSlots);
   },
 
   async getPricingFareRuleById(id: string): Promise<FareSummary> {
@@ -49,13 +82,13 @@ export const PricingFareRulesService = {
   async createPricingFareRule(data: {
     district_id: string;
     area_id?: string | null;
-    global_price: number;
+    per_km_price: number;
+    per_hour_price?: number;
+    minimum_fare?: number;
+    one_way_return_pct?: number;
     is_hotspot: boolean;
     hotspot_id?: string | null;
     multiplier?: number | null;
-    extra_km_step?: number;
-    extra_km_price?: number;
-    extra_km_start_multiplier?: number;
   }): Promise<PricingFareRule> {
     // Validate hotspot requirements
     if (data.is_hotspot) {
@@ -81,44 +114,12 @@ export const PricingFareRulesService = {
       }
     }
 
-    // Validate global_price
-    if (data.global_price < 0) {
-      throw { statusCode: 400, message: 'Global price cannot be negative' };
-    }
-
-    // Validate multiplier if provided
-    if (data.multiplier !== null && data.multiplier !== undefined && data.multiplier <= 0) {
-      throw { statusCode: 400, message: 'Multiplier must be greater than 0' };
-    }
-
-    // Validate extra KM fields
-    if (data.extra_km_step !== undefined && data.extra_km_step <= 0) {
-      throw { statusCode: 400, message: 'Extra KM step must be greater than 0' };
-    }
-    if (data.extra_km_price !== undefined && data.extra_km_price < 0) {
-      throw { statusCode: 400, message: 'Extra KM price cannot be negative' };
-    }
-    if (data.extra_km_start_multiplier !== undefined && data.extra_km_start_multiplier <= 0) {
-      throw { statusCode: 400, message: 'Extra KM start multiplier must be greater than 0' };
-    }
+    validateFareFields(data);
 
     return await PricingFareRulesRepository.createPricingFareRule(data);
   },
 
-  async updatePricingFareRule(
-    id: string,
-    data: {
-      district_id?: string;
-      area_id?: string | null;
-      global_price?: number;
-      is_hotspot?: boolean;
-      hotspot_id?: string | null;
-      multiplier?: number | null;
-      extra_km_step?: number;
-      extra_km_price?: number;
-      extra_km_start_multiplier?: number;
-    }
-  ): Promise<PricingFareRule> {
+  async updatePricingFareRule(id: string, data: FareRuleFields): Promise<PricingFareRule> {
     // Check if pricing fare rule exists
     const existing = await PricingFareRulesRepository.getPricingFareRuleById(id);
     if (!existing) {
@@ -157,26 +158,7 @@ export const PricingFareRulesService = {
       }
     }
 
-    // Validate global_price if provided
-    if (data.global_price !== undefined && data.global_price < 0) {
-      throw { statusCode: 400, message: 'Global price cannot be negative' };
-    }
-
-    // Validate multiplier if provided
-    if (data.multiplier !== null && data.multiplier !== undefined && data.multiplier <= 0) {
-      throw { statusCode: 400, message: 'Multiplier must be greater than 0' };
-    }
-
-    // Validate extra KM fields
-    if (data.extra_km_step !== undefined && data.extra_km_step <= 0) {
-      throw { statusCode: 400, message: 'Extra KM step must be greater than 0' };
-    }
-    if (data.extra_km_price !== undefined && data.extra_km_price < 0) {
-      throw { statusCode: 400, message: 'Extra KM price cannot be negative' };
-    }
-    if (data.extra_km_start_multiplier !== undefined && data.extra_km_start_multiplier <= 0) {
-      throw { statusCode: 400, message: 'Extra KM start multiplier must be greater than 0' };
-    }
+    validateFareFields(data);
 
     return await PricingFareRulesRepository.updatePricingFareRule(id, data);
   },
@@ -192,26 +174,20 @@ export const PricingFareRulesService = {
   },
 
   /**
-   * Create pricing fare rule with time slots in a transaction
+   * Create pricing fare rule with time slots
    */
   async createPricingRuleWithSlots(data: {
     district_id: string;
     area_id?: string | null;
-    global_price: number;
+    per_km_price: number;
+    per_hour_price?: number;
+    minimum_fare?: number;
+    one_way_return_pct?: number;
     is_hotspot: boolean;
     hotspot_id?: string | null;
     multiplier?: number | null;
-    extra_km_step?: number;
-    extra_km_price?: number;
-    extra_km_start_multiplier?: number;
-    extra_km_checkpoints?: Array<{ multiplier: number; sort_order: number }>;
-    time_slots: Array<{
-      driver_types: string;
-      day: string;
-      from_time: string;
-      to_time: string;
-      price: number;
-    }>;
+    extra_km_checkpoints?: CheckpointInput[];
+    time_slots: TimeSlotInput[];
   }): Promise<{ pricingRule: PricingFareRule; timeSlots: any[] }> {
     // Validate hotspot requirements
     if (data.is_hotspot) {
@@ -235,26 +211,7 @@ export const PricingFareRulesService = {
       };
     }
 
-    // Validate global_price
-    if (data.global_price < 0) {
-      throw { statusCode: 400, message: 'Global price cannot be negative' };
-    }
-
-    // Validate multiplier if provided
-    if (data.multiplier !== null && data.multiplier !== undefined && data.multiplier <= 0) {
-      throw { statusCode: 400, message: 'Multiplier must be greater than 0' };
-    }
-
-    // Validate extra KM fields
-    if (data.extra_km_step !== undefined && data.extra_km_step <= 0) {
-      throw { statusCode: 400, message: 'Extra KM step must be greater than 0' };
-    }
-    if (data.extra_km_price !== undefined && data.extra_km_price < 0) {
-      throw { statusCode: 400, message: 'Extra KM price cannot be negative' };
-    }
-    if (data.extra_km_start_multiplier !== undefined && data.extra_km_start_multiplier <= 0) {
-      throw { statusCode: 400, message: 'Extra KM start multiplier must be greater than 0' };
-    }
+    validateFareFields(data);
 
     // Validate time slots
     if (!data.time_slots || data.time_slots.length === 0) {
@@ -265,13 +222,13 @@ export const PricingFareRulesService = {
     const pricingRule = await PricingFareRulesRepository.createPricingFareRule({
       district_id: data.district_id,
       area_id: data.area_id,
-      global_price: data.global_price,
+      per_km_price: data.per_km_price,
+      per_hour_price: data.per_hour_price,
+      minimum_fare: data.minimum_fare,
+      one_way_return_pct: data.one_way_return_pct,
       is_hotspot: data.is_hotspot,
       hotspot_id: data.hotspot_id,
       multiplier: data.multiplier,
-      extra_km_step: data.extra_km_step,
-      extra_km_price: data.extra_km_price,
-      extra_km_start_multiplier: data.extra_km_start_multiplier,
     });
 
     // Prepare time slots with the pricing rule ID
@@ -281,7 +238,8 @@ export const PricingFareRulesService = {
       day: slot.day,
       from_time: slot.from_time,
       to_time: slot.to_time,
-      price: slot.price,
+      per_km_rate: slot.per_km_rate,
+      per_hour_rate: slot.per_hour_rate ?? 0,
     }));
 
     // Bulk create time slots
@@ -293,7 +251,8 @@ export const PricingFareRulesService = {
       await ExtraKmCheckpointsRepository.bulkCreate(
         data.extra_km_checkpoints.map((c) => ({
           pricing_fare_rule_id: pricingRule.id,
-          multiplier: c.multiplier,
+          from_km: c.from_km,
+          price: c.price,
           sort_order: c.sort_order,
         }))
       );
@@ -303,41 +262,26 @@ export const PricingFareRulesService = {
   },
 
   /**
-   * Update pricing fare rule with time slots in a transaction
+   * Update pricing fare rule with time slots
    */
   async updatePricingRuleWithSlots(
     id: string,
-    data: {
-      district_id?: string;
-      area_id?: string | null;
-      global_price?: number;
-      is_hotspot?: boolean;
-      hotspot_id?: string | null;
-      multiplier?: number | null;
-      extra_km_step?: number;
-      extra_km_price?: number;
-      extra_km_start_multiplier?: number;
-      extra_km_checkpoints?: Array<{ multiplier: number; sort_order: number }>;
-      time_slots?: Array<{
-        driver_types: string;
-        day: string;
-        from_time: string;
-        to_time: string;
-        price: number;
-      }>;
+    data: FareRuleFields & {
+      extra_km_checkpoints?: CheckpointInput[];
+      time_slots?: TimeSlotInput[];
     }
   ): Promise<{ pricingRule: PricingFareRule; timeSlots: any[] }> {
     // 1. Update the pricing rule itself (validation is handled inside updatePricingFareRule)
     const pricingRule = await PricingFareRulesService.updatePricingFareRule(id, {
       district_id: data.district_id,
       area_id: data.area_id,
-      global_price: data.global_price,
+      per_km_price: data.per_km_price,
+      per_hour_price: data.per_hour_price,
+      minimum_fare: data.minimum_fare,
+      one_way_return_pct: data.one_way_return_pct,
       is_hotspot: data.is_hotspot,
       hotspot_id: data.hotspot_id,
       multiplier: data.multiplier,
-      extra_km_step: data.extra_km_step,
-      extra_km_price: data.extra_km_price,
-      extra_km_start_multiplier: data.extra_km_start_multiplier,
     });
 
     // 2. If time_slots are provided, replace them
@@ -353,7 +297,8 @@ export const PricingFareRulesService = {
         day: slot.day,
         from_time: slot.from_time,
         to_time: slot.to_time,
-        price: slot.price,
+        per_km_rate: slot.per_km_rate,
+        per_hour_rate: slot.per_hour_rate ?? 0,
       }));
 
       // Create new slots
@@ -370,7 +315,8 @@ export const PricingFareRulesService = {
       await ExtraKmCheckpointsRepository.bulkCreate(
         data.extra_km_checkpoints.map((c) => ({
           pricing_fare_rule_id: id,
-          multiplier: c.multiplier,
+          from_km: c.from_km,
+          price: c.price,
           sort_order: c.sort_order,
         }))
       );

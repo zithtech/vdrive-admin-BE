@@ -1,79 +1,92 @@
 import { query } from '../../shared/database';
 import { TaxRepository } from '../tax-management/tax.repository';
 
+type TripType = 'one_way' | 'round_trip';
+
+// Hardcoded fallback rates used only when no fare rule exists for the zone
+const FALLBACK_RATES: Record<string, { per_km: number; per_hour: number }> = {
+  normal: { per_km: 10, per_hour: 100 },
+  elite: { per_km: 12, per_hour: 120 },
+  premium: { per_km: 18, per_hour: 180 },
+};
+
+const RIDE_TYPES = ['normal', 'elite', 'premium'];
+
+/**
+ * Piecewise distance charge: band [0, t1) is billed at `baseRate` (the zone /
+ * matching time-slot ₹/km); each checkpoint defines an absolute ₹/km for the band
+ * starting at its from_km. Charge = Σ(km in band × band rate).
+ */
+function computeDistanceCharge(
+  distanceKm: number,
+  baseRate: number,
+  checkpoints: Array<{ from_km: number; price: number }>
+): { charge: number; bands: Array<{ from_km: number; to_km: number | null; rate: number; km: number; amount: number }> } {
+  const sorted = checkpoints
+    .map((c) => ({ from_km: Number(c.from_km), price: Number(c.price) }))
+    .filter((c) => c.from_km > 0)
+    .sort((a, b) => a.from_km - b.from_km);
+
+  const segments = [{ start: 0, rate: baseRate }, ...sorted.map((c) => ({ start: c.from_km, rate: c.price }))];
+
+  let charge = 0;
+  const bands = [];
+  for (let i = 0; i < segments.length; i++) {
+    const start = segments[i].start;
+    const end = i + 1 < segments.length ? segments[i + 1].start : null;
+    if (end !== null && distanceKm <= start) break;
+    const bandEnd = end === null ? distanceKm : Math.min(distanceKm, end);
+    const km = Math.max(0, bandEnd - start);
+    const amount = km * segments[i].rate;
+    charge += amount;
+    bands.push({ from_km: start, to_km: end, rate: segments[i].rate, km, amount });
+  }
+  return { charge, bands };
+}
+
 export const PricingCalculatorService = {
   async calculateAllTypes(input: {
     distance_km: number;
     duration_min: number;
     day: string;
     time: string;
+    trip_type?: TripType;
+    driver_type?: string;
     from_area?: string | null;
     from_district: string;
     to_area?: string | null;
     to_district?: string | null;
   }) {
     const { distance_km, duration_min, day, time, from_area, from_district } = input;
+    const tripType: TripType = input.trip_type === 'round_trip' ? 'round_trip' : 'one_way';
 
-    // Helper: Check if time is in range (input format: "HH:mm", range format: "HH:mm:ss" or "HH:mm")
+    // Check if a time "HH:mm" falls inside a [from, to] range (supports overnight)
     const isTimeInRange = (currentTime: string, from: string, to: string) => {
-      const current = currentTime.split(':').map(Number);
-      const start = from.split(':').map(Number);
-      const end = to.split(':').map(Number);
-
-      const currentVal = current[0] * 60 + current[1];
-      const startVal = start[0] * 60 + start[1];
-      const endVal = end[0] * 60 + end[1];
-
-      // Handle overnight slots (e.g., 22:00 - 05:00)
-      if (endVal < startVal) {
-        return currentVal >= startVal || currentVal < endVal;
-      }
+      const toMin = (s: string) => {
+        const p = s.split(':').map(Number);
+        return p[0] * 60 + p[1];
+      };
+      const currentVal = toMin(currentTime);
+      const startVal = toMin(from);
+      const endVal = toMin(to);
+      if (endVal < startVal) return currentVal >= startVal || currentVal < endVal;
       return currentVal >= startVal && currentVal < endVal;
     };
 
-    // 1. Convert duration to hours for combination lookup
-    const duration_hrs = duration_min / 60;
-
-    // 2. Find the best matching Base Pricing Combination
-    const baseCombinationResult = await query(
-      `SELECT * FROM pricing_combinations 
-       WHERE type = 'Base' AND duration <= $1 AND distance <= $2 
-       ORDER BY duration DESC, distance DESC LIMIT 1`,
-      [duration_hrs, distance_km]
-    );
-
-    const baseCombination = baseCombinationResult.rows[0];
-    let matrixBaseFare = 0;
-    let extraKmRate = 0;
-    let baseDistance = 0;
-
-    if (baseCombination) {
-      matrixBaseFare = parseFloat(baseCombination.price);
-      baseDistance = parseFloat(baseCombination.distance);
-
-      // Look up Extra KM rate for the same tier
-      const extraKmResult = await query(
-        `SELECT per_km_rate FROM pricing_combinations 
-         WHERE type = 'Extra KM' AND tier = $1 LIMIT 1`,
-        [baseCombination.tier]
-      );
-      if (extraKmResult.rows[0]) {
-        extraKmRate = parseFloat(extraKmResult.rows[0].per_km_rate);
-      }
-    }
-
-    // 3. Fetch Pricing Fare Rule & Hotspot Multiplier (Zone specific)
+    // 1. Fetch the zone fare rule (district / area specific) + hotspot
     const fareRuleResult = await query(
-      `SELECT p.id as rule_id, p.global_price, p.multiplier as rule_multiplier,
-              h.id as hotspot_id, h.multiplier as hotspot_multiplier,
-              d.name as district_name, a.name as area_name
+      `SELECT p.id AS rule_id, p.is_hotspot,
+              p.per_km_price, p.per_hour_price, p.minimum_fare, p.one_way_return_pct,
+              p.multiplier AS rule_multiplier,
+              h.id AS hotspot_id, h.hotspot_name, h.multiplier AS hotspot_multiplier, h.fare AS hotspot_fare,
+              d.name AS district_name, a.name AS area_name
        FROM price_and_fare_rules p
        LEFT JOIN districts d ON p.district_id = d.id
        LEFT JOIN areas a ON p.area_id = a.id
        LEFT JOIN hotspots h ON p.hotspot_id = h.id
-       WHERE d.name ILIKE $1 
+       WHERE d.name ILIKE $1
          AND (
-           ($2::text IS NOT NULL AND a.name ILIKE $2) 
+           ($2::text IS NOT NULL AND a.name ILIKE $2)
            OR (p.area_id IS NULL)
          )
        ORDER BY p.area_id ASC NULLS LAST LIMIT 1`,
@@ -81,106 +94,95 @@ export const PricingCalculatorService = {
     );
     const fareRule = fareRuleResult.rows[0];
 
-    // 4. Fetch Time Slot Pricing rules for the zone
+    // 2. Distance tiers (checkpoints) for the rule
+    let checkpoints: Array<{ from_km: number; price: number }> = [];
+    if (fareRule?.rule_id) {
+      const cpResult = await query(
+        `SELECT from_km, price FROM extra_km_checkpoints
+         WHERE pricing_fare_rule_id = $1 ORDER BY from_km ASC`,
+        [fareRule.rule_id]
+      );
+      checkpoints = cpResult.rows;
+    }
+
+    // 3. Time-slot rates for the zone on this day
     let timeSlotPricings: any[] = [];
-    if (fareRule && fareRule.rule_id) {
+    if (fareRule?.rule_id) {
       const tsResult = await query(
-        `SELECT id, driver_types, from_time, to_time, price 
-         FROM driver_time_slots_pricing 
+        `SELECT driver_types, from_time, to_time, per_km_rate, per_hour_rate
+         FROM driver_time_slots_pricing
          WHERE price_and_fare_rules_id = $1 AND day ILIKE $2`,
         [fareRule.rule_id, day]
       );
       timeSlotPricings = tsResult.rows;
     }
 
-    // 5. Fetch Rate Details (from price-settings - fallback rates)
+    // 4. Waiting / cancellation reference data (informational; not part of base fare)
     const rateDetailsResult = await query(
-      `SELECT l.location_id, l.global_price as loc_global_price,
-              rd.driver_type, rd.cancellation_fee, rd.waiting_per_min, rd.waiting_fee,
-              t.from_time, t.to_time, t.from_type, t.to_type, t.rate as timing_rate
+      `SELECT rd.driver_type, rd.cancellation_fee, rd.waiting_per_min, rd.waiting_fee
        FROM created_locations l
        JOIN rate_details rd ON rd.location_id = l.location_id
-       LEFT JOIN timings t ON t.rate_id = rd.rate_id
-       WHERE l.district ILIKE $1 AND ($2::text IS NULL OR l.area ILIKE $2)
-         AND (t.day IS NULL OR t.day::text ILIKE $3)`,
-      [from_district, from_area || null, day]
+       WHERE l.district ILIKE $1 AND ($2::text IS NULL OR l.area ILIKE $2)`,
+      [from_district, from_area || null]
     );
     const rateDetails = rateDetailsResult.rows;
 
-    // 6. Fetch Active Taxes
+    // 5. Active taxes
     const activeTaxes = await TaxRepository.getActiveTaxes();
 
-    const rideOptions = [];
-    const RIDE_TYPES = ['normal', 'elite', 'premium'];
+    const surgeMultiplier =
+      fareRule && fareRule.hotspot_multiplier
+        ? parseFloat(fareRule.hotspot_multiplier)
+        : fareRule && fareRule.rule_multiplier
+          ? parseFloat(fareRule.rule_multiplier)
+          : 1.0;
+    const hotspotFare =
+      fareRule && fareRule.is_hotspot && fareRule.hotspot_fare
+        ? parseFloat(fareRule.hotspot_fare)
+        : 0;
+    const oneWayReturnPct = fareRule ? parseFloat(fareRule.one_way_return_pct) || 0 : 0;
+    const minimumFare = fareRule ? parseFloat(fareRule.minimum_fare) || 0 : 0;
 
-    for (const ride_type of RIDE_TYPES) {
-      // Find matching time slot price for base fare (Filtered by driver type and current time)
+    const requestedTypes =
+      input.driver_type && RIDE_TYPES.includes(input.driver_type)
+        ? [input.driver_type]
+        : RIDE_TYPES;
+
+    const rideOptions = [];
+    for (const ride_type of requestedTypes) {
+      // Matching time slot for this driver type + current time
       const matchingTimeSlot = timeSlotPricings.find((ts) => {
         const typeMatch = ts.driver_types && ts.driver_types.toLowerCase().includes(ride_type);
         const timeMatch = isTimeInRange(time, ts.from_time, ts.to_time);
         return typeMatch && timeMatch;
       });
 
-      // Find matching rate detail
-      const matchingRateDetail = rateDetails.find((rd) => rd.driver_type === ride_type);
+      // Effective rates: matching slot overrides zone base; else zone defaults; else fallback
+      const fallback = FALLBACK_RATES[ride_type] || FALLBACK_RATES.normal;
+      const perKm = matchingTimeSlot
+        ? parseFloat(matchingTimeSlot.per_km_rate)
+        : fareRule && fareRule.per_km_price != null
+          ? parseFloat(fareRule.per_km_price)
+          : fallback.per_km;
+      const perHour = matchingTimeSlot
+        ? parseFloat(matchingTimeSlot.per_hour_rate)
+        : fareRule && fareRule.per_hour_price != null
+          ? parseFloat(fareRule.per_hour_price)
+          : fallback.per_hour;
 
-      // 1. Determine Base Component (Priority-based)
-      let base_fare = 0;
-      if (matchingTimeSlot) {
-        base_fare = parseFloat(matchingTimeSlot.price);
-      } else if (matrixBaseFare > 0) {
-        base_fare = matrixBaseFare;
-      } else if (fareRule && fareRule.global_price) {
-        base_fare = parseFloat(fareRule.global_price);
-      } else {
-        // Hardcoded fallbacks if no rules found
-        base_fare = ride_type === 'normal' ? 40 : ride_type === 'elite' ? 50 : 70;
-      }
+      // Components
+      const { charge: distance_charge, bands } = computeDistanceCharge(distance_km, perKm, checkpoints);
+      const time_charge = perHour * (duration_min / 60);
+      const return_charge =
+        tripType === 'one_way' ? distance_charge * (oneWayReturnPct / 100) : 0;
 
-      // 2. Determine Per KM and Per Min components
-      const per_km =
-        matchingRateDetail && matchingRateDetail.timing_rate
-          ? parseFloat(matchingRateDetail.timing_rate)
-          : ride_type === 'normal'
-            ? 10
-            : ride_type === 'elite'
-              ? 12
-              : 18;
+      const trip = distance_charge + time_charge + return_charge;
+      const subtotal = trip * surgeMultiplier + hotspotFare;
+      const fare = Math.max(subtotal, minimumFare);
 
-      const per_min =
-        matchingRateDetail && matchingRateDetail.waiting_fee
-          ? parseFloat(matchingRateDetail.waiting_fee)
-          : ride_type === 'normal'
-            ? 2
-            : ride_type === 'elite'
-              ? 3
-              : 4;
-
-      // Surge Multiplier from Hotspot or Fare Rule
-      const surge_multiplier =
-        fareRule && fareRule.hotspot_multiplier
-          ? parseFloat(fareRule.hotspot_multiplier)
-          : fareRule && fareRule.rule_multiplier
-            ? parseFloat(fareRule.rule_multiplier)
-            : 1.0;
-
-      // 3. Final Fare Calculation (Subtotal)
-      let distance_fare = 0;
-      // If we used Matrix Base Fare, we use Matrix Extra KM rate.
-      // Otherwise use the distance rate from rate settings.
-      if (matrixBaseFare > 0 && baseDistance > 0 && !matchingTimeSlot) {
-        const extra_distance = Math.max(0, distance_km - baseDistance);
-        distance_fare = extra_distance * (extraKmRate || per_km);
-      } else {
-        distance_fare = per_km * distance_km;
-      }
-
-      const time_fare = per_min * duration_min;
-      const subtotal = (base_fare + distance_fare + time_fare) * surge_multiplier;
-
-      // 4. Calculate Taxes
+      // Taxes on the (floored) fare
       const taxDetails = activeTaxes.map((tax) => {
-        const taxAmount = (subtotal * parseFloat(tax.percentage)) / 100;
+        const taxAmount = (fare * parseFloat(tax.percentage)) / 100;
         return {
           tax_name: tax.tax_name,
           tax_type: tax.tax_type,
@@ -188,28 +190,39 @@ export const PricingCalculatorService = {
           amount: taxAmount,
         };
       });
+      const totalTaxes = taxDetails.reduce((sum, t) => sum + t.amount, 0);
+      const total_fare = fare + totalTaxes;
 
-      const totalTaxes = taxDetails.reduce((sum, tax) => sum + tax.amount, 0);
-      const total_fare = subtotal + totalTaxes;
+      const matchingRateDetail = rateDetails.find((rd) => rd.driver_type === ride_type);
 
       rideOptions.push({
         ride_type,
         fare_details: {
-          base_fare,
-          per_km: matrixBaseFare > 0 && !matchingTimeSlot ? extraKmRate || per_km : per_km,
-          per_min,
-          distance_fare,
-          time_fare,
-          surge_multiplier,
+          per_km: perKm,
+          per_hour: perHour,
+          distance_km,
+          duration_min,
+          distance_charge,
+          time_charge,
+          return_charge,
+          distance_bands: bands,
+          surge_multiplier: surgeMultiplier,
+          hotspot_fare: hotspotFare,
+          minimum_fare: minimumFare,
           subtotal,
+          fare,
           taxes: taxDetails,
           total_taxes: totalTaxes,
           total_fare,
+          // Informational extras (charged separately, not part of base fare)
+          cancellation_fee: matchingRateDetail ? parseFloat(matchingRateDetail.cancellation_fee) : null,
+          waiting_per_min: matchingRateDetail ? parseFloat(matchingRateDetail.waiting_per_min) : null,
+          waiting_fee: matchingRateDetail ? parseFloat(matchingRateDetail.waiting_fee) : null,
         },
       });
     }
 
-    // Identify time slot label for output
+    // Time-of-day label for output
     let time_slot_label = 'normal';
     if (day.toLowerCase() === 'saturday' || day.toLowerCase() === 'sunday') {
       time_slot_label = 'weekend';
@@ -221,15 +234,19 @@ export const PricingCalculatorService = {
 
     return {
       success: true,
-      combination_id: baseCombination ? baseCombination.id : 'default_pkg',
+      trip_type: tripType,
       pricing_zone: {
         district: fareRule?.district_name || from_district,
         area: fareRule?.area_name || from_area || null,
         rule_id: fareRule?.rule_id || null,
-        global_price: fareRule?.global_price || null,
+        per_km_price: fareRule ? parseFloat(fareRule.per_km_price) : null,
+        per_hour_price: fareRule ? parseFloat(fareRule.per_hour_price) : null,
+        minimum_fare: minimumFare,
+        one_way_return_pct: oneWayReturnPct,
         is_hotspot: fareRule?.is_hotspot || false,
         hotspot_name: fareRule?.hotspot_name || null,
-        multiplier: fareRule?.hotspot_multiplier || fareRule?.rule_multiplier || 1.0,
+        hotspot_fare: hotspotFare,
+        multiplier: surgeMultiplier,
       },
       time_slot_info: {
         label: time_slot_label,
