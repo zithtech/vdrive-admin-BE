@@ -56,9 +56,12 @@ export const DriverTimeSlotsPricingValidation = {
         'any.required': 'To time is required',
         'string.pattern.base': 'To time must be in HH:MM or HH:MM:SS format',
       }),
-    price: Joi.number().precision(2).min(0).required().messages({
-      'number.min': 'Price must be greater than or equal to 0',
-      'any.required': 'Price is required',
+    per_km_rate: Joi.number().precision(2).min(0).required().messages({
+      'number.min': 'Rate per km must be greater than or equal to 0',
+      'any.required': 'Rate per km is required',
+    }),
+    per_hour_rate: Joi.number().precision(2).min(0).optional().default(0).messages({
+      'number.min': 'Rate per hour must be greater than or equal to 0',
     }),
   }),
 
@@ -84,8 +87,11 @@ export const DriverTimeSlotsPricingValidation = {
         .messages({
           'string.pattern.base': 'To time must be in HH:MM or HH:MM:SS format',
         }),
-      price: Joi.number().precision(2).min(0).optional().messages({
-        'number.min': 'Price must be greater than or equal to 0',
+      per_km_rate: Joi.number().precision(2).min(0).optional().messages({
+        'number.min': 'Rate per km must be greater than or equal to 0',
+      }),
+      per_hour_rate: Joi.number().precision(2).min(0).optional().messages({
+        'number.min': 'Rate per hour must be greater than or equal to 0',
       }),
     })
     .min(1)
@@ -109,7 +115,8 @@ export const DriverTimeSlotsPricingValidation = {
           to_time: Joi.string()
             .pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/)
             .required(),
-          price: Joi.number().precision(2).min(0).required(),
+          per_km_rate: Joi.number().precision(2).min(0).required(),
+          per_hour_rate: Joi.number().precision(2).min(0).optional().default(0),
         })
       )
       .min(1)
