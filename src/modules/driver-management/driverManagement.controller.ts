@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { DriverManagementRepository } from './driverManagement.repository';
-import { notifyUserBackend } from '../../services/socket';
+import { notifyUserBackend } from '../../shared/eventBus';
 import { extractDocumentData } from '../../services/ocrService';
 import { forwardRequest } from '../../shared/forwardRequest';
 import config from '../../config';

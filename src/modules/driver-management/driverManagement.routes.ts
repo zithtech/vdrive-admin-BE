@@ -40,7 +40,11 @@ router.get(
   requirePermission('drivers', 'read'),
   DriverManagementController.getWalletBalance
 );
-router.get('/today-overview/:id', DriverManagementController.getTodayOverview);
+router.get(
+  '/today-overview/:id',
+  requirePermission('drivers', 'read'),
+  DriverManagementController.getTodayOverview
+);
 
 // Wildcard /:id MUST come after all specific GET routes
 router.get('/:id', requirePermission('drivers', 'read'), DriverManagementController.getDriverById);
@@ -61,8 +65,16 @@ router.post(
   requirePermission('drivers', 'update'),
   DriverManagementController.adminVerifyDriver
 );
-router.post('/:id/go-online', DriverManagementController.goOnline);
-router.post('/:id/go-offline', DriverManagementController.goOffline);
+router.post(
+  '/:id/go-online',
+  requirePermission('drivers', 'update'),
+  DriverManagementController.goOnline
+);
+router.post(
+  '/:id/go-offline',
+  requirePermission('drivers', 'update'),
+  DriverManagementController.goOffline
+);
 
 router.patch(
   '/documents/verify/:document_id',
