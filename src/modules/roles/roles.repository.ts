@@ -8,6 +8,22 @@ export const RolesRepository = {
     return result.rows;
   },
 
+  async findById(id: string) {
+    const result = await query(
+      'SELECT id, name, description, role_type FROM roles WHERE id = $1',
+      [id]
+    );
+    return result.rows[0] || null;
+  },
+
+  async findByName(name: string) {
+    const result = await query(
+      'SELECT id, name, description, role_type FROM roles WHERE name = $1',
+      [name]
+    );
+    return result.rows[0] || null;
+  },
+
   async getRolePermissions(roleId: string) {
     const sql = `
       SELECT p.module, p.action

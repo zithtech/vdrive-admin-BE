@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { SupportManagementRepository } from './supportManagement.repository';
 import axios from 'axios';
 import config from '../../config';
-import { notifyUserBackend } from '../../services/socket';
+import { notifyUserBackend } from '../../shared/eventBus';
 
 export const SupportManagementController = {
   /* ======================== FAQs ======================== */
