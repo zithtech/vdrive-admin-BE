@@ -1,21 +1,36 @@
 import { DriverTimeSlotsPricing } from './driverTimeSlotsPricing.model';
 
-export interface ExtraKmCheckpoint {
+// Per driver-type default rate card (used when no day/time slot matches)
+export interface DriverRateCard {
   id: string;
   pricing_fare_rule_id: string;
-  from_km: number;
-  price: number;
+  driver_types: string;
+  per_hour_rate: number;
+  per_km_rate: number;
+  free_km: number;
+  minimum_fare: number;
+}
+
+// Per driver-type duration slab ("from X hours → ₹/hr")
+export interface TimeSlab {
+  id: string;
+  pricing_fare_rule_id: string;
+  driver_types: string;
+  from_hours: number;
+  per_hour_rate: number;
   sort_order: number;
 }
 
+// Zone-wide pricing rule
 export interface PricingFareRule {
   id: string;
   district_id: string;
   area_id: string | null;
-  per_km_price: number;
-  per_hour_price: number;
-  minimum_fare: number;
   one_way_return_pct: number;
+  night_charge_pct: number;
+  night_start: string;
+  night_end: string;
+  outstation_allowance_per_day: number;
   is_hotspot: boolean;
   hotspot_id: string | null;
   multiplier: number | null;
@@ -32,14 +47,16 @@ export interface FareSummary {
   area_name: string | null;
   area_id: string | null;
   pincode: string | null;
-  per_km_price: number;
-  per_hour_price: number;
-  minimum_fare: number;
   one_way_return_pct: number;
+  night_charge_pct: number;
+  night_start: string;
+  night_end: string;
+  outstation_allowance_per_day: number;
   is_hotspot: boolean;
   hotspot_id: string | null;
   hotspot_name: string | null;
   multiplier: number | null;
-  extra_km_checkpoints?: ExtraKmCheckpoint[];
+  rate_cards?: DriverRateCard[];
+  time_slabs?: TimeSlab[];
   time_slots?: DriverTimeSlotsPricing[];
 }

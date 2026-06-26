@@ -1,14 +1,35 @@
 import { PricingFareRulesRepository } from './pricingFareRules.repository';
 import { PricingFareRule, FareSummary } from './pricingFareRules.model';
 import { DriverTimeSlotsPricingRepository } from './driverTimeSlotsPricing.repository';
-import { ExtraKmCheckpointsRepository } from './extraKmCheckpoints.repository';
+import { DriverRateCardsRepository } from './driverRateCards.repository';
+import { TimeSlabsRepository } from './timeSlabs.repository';
 
-interface CheckpointInput {
-  from_km: number;
-  price: number;
-  sort_order: number;
+interface ZoneFields {
+  district_id?: string;
+  area_id?: string | null;
+  one_way_return_pct?: number;
+  night_charge_pct?: number;
+  night_start?: string;
+  night_end?: string;
+  outstation_allowance_per_day?: number;
+  is_hotspot?: boolean;
+  hotspot_id?: string | null;
+  multiplier?: number | null;
 }
 
+interface RateCardInput {
+  driver_types: string;
+  per_hour_rate: number;
+  per_km_rate?: number;
+  free_km?: number;
+  minimum_fare?: number;
+}
+interface TimeSlabInput {
+  driver_types: string;
+  from_hours: number;
+  per_hour_rate: number;
+  sort_order: number;
+}
 interface TimeSlotInput {
   driver_types: string;
   day: string;
@@ -18,48 +39,56 @@ interface TimeSlotInput {
   per_hour_rate?: number;
 }
 
-interface FareRuleFields {
-  district_id?: string;
-  area_id?: string | null;
-  per_km_price?: number;
-  per_hour_price?: number;
-  minimum_fare?: number;
-  one_way_return_pct?: number;
-  is_hotspot?: boolean;
-  hotspot_id?: string | null;
-  multiplier?: number | null;
-}
-
-// Validate the numeric fare-model fields shared by create/update
-function validateFareFields(data: FareRuleFields) {
-  if (data.per_km_price !== undefined && data.per_km_price < 0) {
-    throw { statusCode: 400, message: 'Price per km cannot be negative' };
-  }
-  if (data.per_hour_price !== undefined && data.per_hour_price < 0) {
-    throw { statusCode: 400, message: 'Price per hour cannot be negative' };
-  }
-  if (data.minimum_fare !== undefined && data.minimum_fare < 0) {
-    throw { statusCode: 400, message: 'Minimum fare cannot be negative' };
-  }
+function validateZoneFields(data: ZoneFields) {
   if (
     data.one_way_return_pct !== undefined &&
     (data.one_way_return_pct < 0 || data.one_way_return_pct > 100)
   ) {
     throw { statusCode: 400, message: 'One-way return % must be between 0 and 100' };
   }
+  if (
+    data.night_charge_pct !== undefined &&
+    (data.night_charge_pct < 0 || data.night_charge_pct > 100)
+  ) {
+    throw { statusCode: 400, message: 'Night charge % must be between 0 and 100' };
+  }
+  if (data.outstation_allowance_per_day !== undefined && data.outstation_allowance_per_day < 0) {
+    throw { statusCode: 400, message: 'Outstation allowance cannot be negative' };
+  }
   if (data.multiplier !== null && data.multiplier !== undefined && data.multiplier <= 0) {
     throw { statusCode: 400, message: 'Multiplier must be greater than 0' };
   }
 }
 
+// Map a rate-card input to the repo shape (filling defaults)
+const toCardRow = (ruleId: string, c: RateCardInput) => ({
+  pricing_fare_rule_id: ruleId,
+  driver_types: c.driver_types,
+  per_hour_rate: c.per_hour_rate,
+  per_km_rate: c.per_km_rate ?? 0,
+  free_km: c.free_km ?? 0,
+  minimum_fare: c.minimum_fare ?? 0,
+});
+const toSlabRow = (ruleId: string, s: TimeSlabInput) => ({
+  pricing_fare_rule_id: ruleId,
+  driver_types: s.driver_types,
+  from_hours: s.from_hours,
+  per_hour_rate: s.per_hour_rate,
+  sort_order: s.sort_order,
+});
+const toSlotRow = (ruleId: string, s: TimeSlotInput) => ({
+  price_and_fare_rules_id: ruleId,
+  driver_types: s.driver_types,
+  day: s.day,
+  from_time: s.from_time,
+  to_time: s.to_time,
+  per_km_rate: s.per_km_rate,
+  per_hour_rate: s.per_hour_rate ?? 0,
+});
+
 export const PricingFareRulesService = {
   async getPricingFareRules(
-    filters: {
-      search?: string;
-      area_id?: string;
-      district_id?: string;
-      is_hotspot?: boolean;
-    },
+    filters: { search?: string; area_id?: string; district_id?: string; is_hotspot?: boolean },
     page: number,
     limit: number,
     includeTimeSlots = false
@@ -72,254 +101,143 @@ export const PricingFareRulesService = {
     if (!fareRule) {
       throw { statusCode: 404, message: 'Pricing fare rule not found' };
     }
-
-    // Always include time slots when fetching a single fare rule
+    fareRule.rate_cards = await DriverRateCardsRepository.getByPricingFareRuleId(id);
+    fareRule.time_slabs = await TimeSlabsRepository.getByPricingFareRuleId(id);
     fareRule.time_slots = await DriverTimeSlotsPricingRepository.getByPricingFareRuleId(id);
-
     return fareRule;
   },
 
-  async createPricingFareRule(data: {
-    district_id: string;
-    area_id?: string | null;
-    per_km_price: number;
-    per_hour_price?: number;
-    minimum_fare?: number;
-    one_way_return_pct?: number;
-    is_hotspot: boolean;
-    hotspot_id?: string | null;
-    multiplier?: number | null;
-  }): Promise<PricingFareRule> {
-    // Validate hotspot requirements
+  async createPricingFareRule(data: ZoneFields & { district_id: string; is_hotspot: boolean }) {
     if (data.is_hotspot) {
-      if (!data.hotspot_id) {
+      if (!data.hotspot_id)
         throw { statusCode: 400, message: 'Hotspot ID is required when is_hotspot is true' };
-      }
-      if (!data.multiplier) {
+      if (!data.multiplier)
         throw { statusCode: 400, message: 'Multiplier is required when is_hotspot is true' };
-      }
     }
-
-    // Check for duplicate area combination (only if area_id is provided)
     if (data.area_id) {
-      const isDuplicate = await PricingFareRulesRepository.checkDuplicateArea(
-        data.district_id,
-        data.area_id
-      );
-      if (isDuplicate) {
-        throw {
-          statusCode: 409,
-          message: 'A pricing fare rule already exists for this area combination',
-        };
-      }
+      const dup = await PricingFareRulesRepository.checkDuplicateArea(data.district_id, data.area_id);
+      if (dup)
+        throw { statusCode: 409, message: 'A pricing fare rule already exists for this area combination' };
     }
-
-    validateFareFields(data);
-
-    return await PricingFareRulesRepository.createPricingFareRule(data);
+    validateZoneFields(data);
+    return PricingFareRulesRepository.createPricingFareRule(data);
   },
 
-  async updatePricingFareRule(id: string, data: FareRuleFields): Promise<PricingFareRule> {
-    // Check if pricing fare rule exists
+  async updatePricingFareRule(id: string, data: ZoneFields): Promise<PricingFareRule> {
     const existing = await PricingFareRulesRepository.getPricingFareRuleById(id);
-    if (!existing) {
-      throw { statusCode: 404, message: 'Pricing fare rule not found' };
-    }
+    if (!existing) throw { statusCode: 404, message: 'Pricing fare rule not found' };
 
-    // Merge existing data with updates to validate hotspot requirements
-    const mergedData = { ...existing, ...data };
-    if (mergedData.is_hotspot) {
-      if (!mergedData.hotspot_id) {
+    const merged = { ...existing, ...data };
+    if (merged.is_hotspot) {
+      if (!merged.hotspot_id)
         throw { statusCode: 400, message: 'Hotspot ID is required when is_hotspot is true' };
-      }
-      if (!mergedData.multiplier) {
+      if (!merged.multiplier)
         throw { statusCode: 400, message: 'Multiplier is required when is_hotspot is true' };
-      }
     }
-
-    // If district_id or area_id is being updated, check for duplicates (only if area_id is not null)
     if (data.district_id !== undefined || data.area_id !== undefined) {
       const newDistrictId = data.district_id || existing.district_id;
       const newAreaId = data.area_id !== undefined ? data.area_id : existing.area_id;
-
-      // Only check for duplicates if area_id is provided
       if (newAreaId) {
-        const isDuplicate = await PricingFareRulesRepository.checkDuplicateArea(
-          newDistrictId,
-          newAreaId,
-          id
-        );
-        if (isDuplicate) {
-          throw {
-            statusCode: 409,
-            message: 'A pricing fare rule already exists for this area combination',
-          };
-        }
+        const dup = await PricingFareRulesRepository.checkDuplicateArea(newDistrictId, newAreaId, id);
+        if (dup)
+          throw { statusCode: 409, message: 'A pricing fare rule already exists for this area combination' };
       }
     }
-
-    validateFareFields(data);
-
-    return await PricingFareRulesRepository.updatePricingFareRule(id, data);
+    validateZoneFields(data);
+    return PricingFareRulesRepository.updatePricingFareRule(id, data);
   },
 
   async deletePricingFareRule(id: string): Promise<void> {
-    // Check if pricing fare rule exists
     const existing = await PricingFareRulesRepository.getPricingFareRuleById(id);
-    if (!existing) {
-      throw { statusCode: 404, message: 'Pricing fare rule not found' };
-    }
-
+    if (!existing) throw { statusCode: 404, message: 'Pricing fare rule not found' };
     await PricingFareRulesRepository.deletePricingFareRule(id);
   },
 
   /**
-   * Create pricing fare rule with time slots
+   * Create a rule with per-type rate cards (+ optional duration slabs and day/time slots)
    */
-  async createPricingRuleWithSlots(data: {
-    district_id: string;
-    area_id?: string | null;
-    per_km_price: number;
-    per_hour_price?: number;
-    minimum_fare?: number;
-    one_way_return_pct?: number;
-    is_hotspot: boolean;
-    hotspot_id?: string | null;
-    multiplier?: number | null;
-    extra_km_checkpoints?: CheckpointInput[];
-    time_slots: TimeSlotInput[];
-  }): Promise<{ pricingRule: PricingFareRule; timeSlots: any[] }> {
-    // Validate hotspot requirements
-    if (data.is_hotspot) {
-      if (!data.hotspot_id) {
-        throw { statusCode: 400, message: 'Hotspot ID is required when is_hotspot is true' };
-      }
-      if (!data.multiplier) {
-        throw { statusCode: 400, message: 'Multiplier is required when is_hotspot is true' };
-      }
+  async createPricingRuleWithSlots(
+    data: ZoneFields & {
+      district_id: string;
+      is_hotspot: boolean;
+      rate_cards: RateCardInput[];
+      time_slabs?: TimeSlabInput[];
+      time_slots?: TimeSlotInput[];
     }
-
-    // Check for duplicate district/area combination (including null area_id)
-    const isDuplicate = await PricingFareRulesRepository.checkDuplicateArea(
+  ) {
+    if (data.is_hotspot) {
+      if (!data.hotspot_id)
+        throw { statusCode: 400, message: 'Hotspot ID is required when is_hotspot is true' };
+      if (!data.multiplier)
+        throw { statusCode: 400, message: 'Multiplier is required when is_hotspot is true' };
+    }
+    const dup = await PricingFareRulesRepository.checkDuplicateArea(
       data.district_id,
       data.area_id ?? null
     );
-    if (isDuplicate) {
+    if (dup)
       throw {
         statusCode: 409,
         message: 'A pricing fare rule already exists for this district and area combination',
       };
+    validateZoneFields(data);
+    if (!data.rate_cards || data.rate_cards.length === 0) {
+      throw { statusCode: 400, message: 'At least one driver-type rate card is required' };
     }
 
-    validateFareFields(data);
+    const pricingRule = await PricingFareRulesRepository.createPricingFareRule(data);
 
-    // Validate time slots
-    if (!data.time_slots || data.time_slots.length === 0) {
-      throw { statusCode: 400, message: 'At least one time slot is required' };
+    const rateCards = await DriverRateCardsRepository.bulkCreate(
+      data.rate_cards.map((c) => toCardRow(pricingRule.id, c))
+    );
+    if (data.time_slabs && data.time_slabs.length > 0) {
+      await TimeSlabsRepository.bulkCreate(data.time_slabs.map((s) => toSlabRow(pricingRule.id, s)));
     }
-
-    // Create the pricing rule first
-    const pricingRule = await PricingFareRulesRepository.createPricingFareRule({
-      district_id: data.district_id,
-      area_id: data.area_id,
-      per_km_price: data.per_km_price,
-      per_hour_price: data.per_hour_price,
-      minimum_fare: data.minimum_fare,
-      one_way_return_pct: data.one_way_return_pct,
-      is_hotspot: data.is_hotspot,
-      hotspot_id: data.hotspot_id,
-      multiplier: data.multiplier,
-    });
-
-    // Prepare time slots with the pricing rule ID
-    const slotsWithRuleId = data.time_slots.map((slot) => ({
-      price_and_fare_rules_id: pricingRule.id,
-      driver_types: slot.driver_types,
-      day: slot.day,
-      from_time: slot.from_time,
-      to_time: slot.to_time,
-      per_km_rate: slot.per_km_rate,
-      per_hour_rate: slot.per_hour_rate ?? 0,
-    }));
-
-    // Bulk create time slots
-    const timeSlots =
-      await DriverTimeSlotsPricingRepository.bulkCreateDriverTimeSlotsPricing(slotsWithRuleId);
-
-    // Bulk create extra KM checkpoints if provided
-    if (data.extra_km_checkpoints && data.extra_km_checkpoints.length > 0) {
-      await ExtraKmCheckpointsRepository.bulkCreate(
-        data.extra_km_checkpoints.map((c) => ({
-          pricing_fare_rule_id: pricingRule.id,
-          from_km: c.from_km,
-          price: c.price,
-          sort_order: c.sort_order,
-        }))
+    let timeSlots: any[] = [];
+    if (data.time_slots && data.time_slots.length > 0) {
+      timeSlots = await DriverTimeSlotsPricingRepository.bulkCreateDriverTimeSlotsPricing(
+        data.time_slots.map((s) => toSlotRow(pricingRule.id, s))
       );
     }
 
-    return { pricingRule, timeSlots };
+    return { pricingRule, rateCards, timeSlots };
   },
 
   /**
-   * Update pricing fare rule with time slots
+   * Update a rule and replace its rate cards / duration slabs / day-time slots
    */
   async updatePricingRuleWithSlots(
     id: string,
-    data: FareRuleFields & {
-      extra_km_checkpoints?: CheckpointInput[];
+    data: ZoneFields & {
+      rate_cards?: RateCardInput[];
+      time_slabs?: TimeSlabInput[];
       time_slots?: TimeSlotInput[];
     }
-  ): Promise<{ pricingRule: PricingFareRule; timeSlots: any[] }> {
-    // 1. Update the pricing rule itself (validation is handled inside updatePricingFareRule)
-    const pricingRule = await PricingFareRulesService.updatePricingFareRule(id, {
-      district_id: data.district_id,
-      area_id: data.area_id,
-      per_km_price: data.per_km_price,
-      per_hour_price: data.per_hour_price,
-      minimum_fare: data.minimum_fare,
-      one_way_return_pct: data.one_way_return_pct,
-      is_hotspot: data.is_hotspot,
-      hotspot_id: data.hotspot_id,
-      multiplier: data.multiplier,
-    });
+  ) {
+    const pricingRule = await PricingFareRulesService.updatePricingFareRule(id, data);
 
-    // 2. If time_slots are provided, replace them
-    let timeSlots: any[] = [];
-    if (data.time_slots && data.time_slots.length > 0) {
-      // Delete existing slots
-      await DriverTimeSlotsPricingRepository.deleteByPricingFareRuleId(id);
-
-      // Prepare new slots
-      const slotsWithRuleId = data.time_slots.map((slot) => ({
-        price_and_fare_rules_id: id,
-        driver_types: slot.driver_types,
-        day: slot.day,
-        from_time: slot.from_time,
-        to_time: slot.to_time,
-        per_km_rate: slot.per_km_rate,
-        per_hour_rate: slot.per_hour_rate ?? 0,
-      }));
-
-      // Create new slots
-      timeSlots =
-        await DriverTimeSlotsPricingRepository.bulkCreateDriverTimeSlotsPricing(slotsWithRuleId);
-    } else {
-      // If time_slots not provided in update, fetch existing ones to return
-      timeSlots = await DriverTimeSlotsPricingRepository.getByPricingFareRuleId(id);
+    if (data.rate_cards) {
+      await DriverRateCardsRepository.deleteByPricingFareRuleId(id);
+      if (data.rate_cards.length > 0) {
+        await DriverRateCardsRepository.bulkCreate(data.rate_cards.map((c) => toCardRow(id, c)));
+      }
     }
-
-    // Always replace extra KM checkpoints when updating (delete + re-insert)
-    await ExtraKmCheckpointsRepository.deleteByPricingFareRuleId(id);
-    if (data.extra_km_checkpoints && data.extra_km_checkpoints.length > 0) {
-      await ExtraKmCheckpointsRepository.bulkCreate(
-        data.extra_km_checkpoints.map((c) => ({
-          pricing_fare_rule_id: id,
-          from_km: c.from_km,
-          price: c.price,
-          sort_order: c.sort_order,
-        }))
-      );
+    if (data.time_slabs) {
+      await TimeSlabsRepository.deleteByPricingFareRuleId(id);
+      if (data.time_slabs.length > 0) {
+        await TimeSlabsRepository.bulkCreate(data.time_slabs.map((s) => toSlabRow(id, s)));
+      }
+    }
+    let timeSlots: any[] = [];
+    if (data.time_slots) {
+      await DriverTimeSlotsPricingRepository.deleteByPricingFareRuleId(id);
+      if (data.time_slots.length > 0) {
+        timeSlots = await DriverTimeSlotsPricingRepository.bulkCreateDriverTimeSlotsPricing(
+          data.time_slots.map((s) => toSlotRow(id, s))
+        );
+      }
+    } else {
+      timeSlots = await DriverTimeSlotsPricingRepository.getByPricingFareRuleId(id);
     }
 
     return { pricingRule, timeSlots };
