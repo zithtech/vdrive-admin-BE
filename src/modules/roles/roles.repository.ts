@@ -24,6 +24,13 @@ export const RolesRepository = {
     return result.rows[0] || null;
   },
 
+  // The full permission catalog (what permissions exist) — the single source of
+  // truth that drives the Role Matrix grid.
+  async getPermissionCatalog(): Promise<Array<{ module: string; action: string }>> {
+    const result = await query('SELECT module, action FROM permissions ORDER BY module, action');
+    return result.rows;
+  },
+
   async getRolePermissions(roleId: string) {
     const sql = `
       SELECT p.module, p.action

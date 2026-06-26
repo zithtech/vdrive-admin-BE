@@ -1,7 +1,4 @@
 import { RolesRepository } from './roles.repository';
-import { VDRIVE_MODULES } from '../../config/permissions';
-
-const SYSTEM_MODULES = Object.keys(VDRIVE_MODULES);
 
 export const RolesService = {
   async getAllRoles() {
@@ -12,23 +9,33 @@ export const RolesService = {
     }));
   },
 
-  async getRolePermissions(roleId: string) {
-    const rawPerms = await RolesRepository.getRolePermissions(roleId);
+  // Returns the full permission catalog grouped by module — the single source of
+  // truth the Role Matrix UI renders its grid from.
+  async getPermissionCatalog(): Promise<Array<{ module: string; actions: string[] }>> {
+    const rows = await RolesRepository.getPermissionCatalog();
+    const byModule: Record<string, string[]> = {};
+    for (const { module, action } of rows) {
+      (byModule[module] ??= []).push(action);
+    }
+    return Object.entries(byModule).map(([module, actions]) => ({ module, actions }));
+  },
 
-    // Initialize full permissions matrix with false based on dynamic config
+  async getRolePermissions(roleId: string) {
+    // Scaffold the matrix from the DB catalog (not a static config) so no granted
+    // permission is ever dropped just because a module isn't in some hardcoded list.
+    const [catalog, rawPerms] = await Promise.all([
+      RolesRepository.getPermissionCatalog(),
+      RolesRepository.getRolePermissions(roleId),
+    ]);
+
     const permissions: Record<string, Record<string, boolean>> = {};
-    for (const [modKey, modVal] of Object.entries(VDRIVE_MODULES) as [string, any][]) {
-      permissions[modKey] = {};
-      for (const permStr of modVal.permissions) {
-        const action = permStr.split('.')[1];
-        permissions[modKey][action] = false;
-      }
+    for (const { module, action } of catalog) {
+      (permissions[module] ??= {})[action] = false;
     }
 
-    // Populate with true for active permission associations
-    for (const perm of rawPerms) {
-      if (permissions[perm.module] && perm.action in permissions[perm.module]) {
-        permissions[perm.module][perm.action] = true;
+    for (const { module, action } of rawPerms) {
+      if (permissions[module]) {
+        permissions[module][action] = true;
       }
     }
 

@@ -12,6 +12,15 @@ export const RolesController = {
     }
   },
 
+  async getPermissionCatalog(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const catalog = await RolesService.getPermissionCatalog();
+      successResponse(res, 200, 'Permission catalog retrieved successfully', catalog);
+    } catch (error) {
+      next(error);
+    }
+  },
+
   async getRolePermissions(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { roleId } = req.params;

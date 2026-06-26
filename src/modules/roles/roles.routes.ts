@@ -10,6 +10,7 @@ const router = Router();
 router.use(requireRole('super_admin'));
 
 router.get('/', RolesController.getAllRoles);
+router.get('/catalog', RolesController.getPermissionCatalog);
 router.post('/', RolesController.createRole);
 router.get('/:roleId/permissions', RolesController.getRolePermissions);
 router.put('/:roleId/permissions', RolesController.updateRolePermissions);

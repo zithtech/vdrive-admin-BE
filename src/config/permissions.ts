@@ -117,6 +117,40 @@ export const VDrivePermissions = {
   SUPPORT_TICKET_UPDATE: 'support_ticket.update',
   SUPPORT_TICKET_DELETE: 'support_ticket.delete',
   SUPPORT_TICKET_MANAGE: 'support_ticket.manage',
+
+  // ─── Trips ───────────────────────────────────────────────────────
+  TRIP_CREATE: 'trips.create',
+  TRIP_READ: 'trips.read',
+  TRIP_UPDATE: 'trips.update',
+  TRIP_DELETE: 'trips.delete',
+
+  // ─── Trip Transactions ───────────────────────────────────────────
+  TRIP_TRANSACTION_CREATE: 'trip_transaction.create',
+  TRIP_TRANSACTION_READ: 'trip_transaction.read',
+  TRIP_TRANSACTION_UPDATE: 'trip_transaction.update',
+  TRIP_TRANSACTION_DELETE: 'trip_transaction.delete',
+
+  // ─── Promos ──────────────────────────────────────────────────────
+  PROMO_CREATE: 'promos.create',
+  PROMO_READ: 'promos.read',
+  PROMO_UPDATE: 'promos.update',
+  PROMO_DELETE: 'promos.delete',
+
+  // ─── Referrals ───────────────────────────────────────────────────
+  USER_REFERRAL_CREATE: 'user_referrals.create',
+  USER_REFERRAL_READ: 'user_referrals.read',
+  USER_REFERRAL_UPDATE: 'user_referrals.update',
+  USER_REFERRAL_DELETE: 'user_referrals.delete',
+  DRIVER_REFERRAL_CREATE: 'driver_referrals.create',
+  DRIVER_REFERRAL_READ: 'driver_referrals.read',
+  DRIVER_REFERRAL_UPDATE: 'driver_referrals.update',
+  DRIVER_REFERRAL_DELETE: 'driver_referrals.delete',
+
+  // ─── Driver Outreach ─────────────────────────────────────────────
+  DRIVER_OUTREACH_CREATE: 'drivers_outreach.create',
+  DRIVER_OUTREACH_READ: 'drivers_outreach.read',
+  DRIVER_OUTREACH_UPDATE: 'drivers_outreach.update',
+  DRIVER_OUTREACH_DELETE: 'drivers_outreach.delete',
 } as const;
 
 export type VDrivePermission = (typeof VDrivePermissions)[keyof typeof VDrivePermissions];
@@ -269,6 +303,66 @@ export const VDRIVE_MODULES = {
       VDrivePermissions.SUPPORT_TICKET_MANAGE,
     ],
   },
+  trips: {
+    label: 'Trips',
+    icon: 'map-pin',
+    permissions: [
+      VDrivePermissions.TRIP_CREATE,
+      VDrivePermissions.TRIP_READ,
+      VDrivePermissions.TRIP_UPDATE,
+      VDrivePermissions.TRIP_DELETE,
+    ],
+  },
+  trip_transaction: {
+    label: 'Trip Transactions',
+    icon: 'receipt',
+    permissions: [
+      VDrivePermissions.TRIP_TRANSACTION_CREATE,
+      VDrivePermissions.TRIP_TRANSACTION_READ,
+      VDrivePermissions.TRIP_TRANSACTION_UPDATE,
+      VDrivePermissions.TRIP_TRANSACTION_DELETE,
+    ],
+  },
+  promos: {
+    label: 'Promos',
+    icon: 'ticket',
+    permissions: [
+      VDrivePermissions.PROMO_CREATE,
+      VDrivePermissions.PROMO_READ,
+      VDrivePermissions.PROMO_UPDATE,
+      VDrivePermissions.PROMO_DELETE,
+    ],
+  },
+  user_referrals: {
+    label: 'User Referrals',
+    icon: 'users',
+    permissions: [
+      VDrivePermissions.USER_REFERRAL_CREATE,
+      VDrivePermissions.USER_REFERRAL_READ,
+      VDrivePermissions.USER_REFERRAL_UPDATE,
+      VDrivePermissions.USER_REFERRAL_DELETE,
+    ],
+  },
+  driver_referrals: {
+    label: 'Driver Referrals',
+    icon: 'users',
+    permissions: [
+      VDrivePermissions.DRIVER_REFERRAL_CREATE,
+      VDrivePermissions.DRIVER_REFERRAL_READ,
+      VDrivePermissions.DRIVER_REFERRAL_UPDATE,
+      VDrivePermissions.DRIVER_REFERRAL_DELETE,
+    ],
+  },
+  drivers_outreach: {
+    label: 'Driver Outreach',
+    icon: 'steering-wheel',
+    permissions: [
+      VDrivePermissions.DRIVER_OUTREACH_CREATE,
+      VDrivePermissions.DRIVER_OUTREACH_READ,
+      VDrivePermissions.DRIVER_OUTREACH_UPDATE,
+      VDrivePermissions.DRIVER_OUTREACH_DELETE,
+    ],
+  },
   // reports: {
   //   label: 'Reports & Analytics',
   //   icon: 'chart-bar',
@@ -394,6 +488,7 @@ export const ALL_VDRIVE_PERMISSIONS: VDrivePermission[] = Object.values(VDrivePe
 export const VDriveSystemRoles = {
   SUPER_ADMIN: 'super_admin',
   ADMIN: 'admin',
+  USER: 'user',
 } as const;
 
 export type VDriveSystemRole = (typeof VDriveSystemRoles)[keyof typeof VDriveSystemRoles];
