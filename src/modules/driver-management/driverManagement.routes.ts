@@ -10,9 +10,11 @@ router.use(isAuthenticated);
 
 // Static/specific GET routes MUST come before the /:id wildcard
 router.get('/', requirePermission('drivers', 'read'), DriverManagementController.getDrivers);
+// Dashboard overview is gated by `dashboard.read` (not drivers.read) so granting
+// "view dashboard" unlocks the whole overview. It returns only aggregate summary data.
 router.get(
   '/dashboard-stats',
-  requirePermission('drivers', 'read'),
+  requirePermission('dashboard', 'read'),
   DriverManagementController.getDashboardStats
 );
 router.get(

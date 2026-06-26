@@ -37,7 +37,10 @@ export const AdminUserController = {
     const { email } = req.body;
     try {
       logger.info(`Creating admin user: ${email}`);
-      const adminUser = await AdminUserService.createAdminUser(req.body);
+      const adminUser = await AdminUserService.createAdminUser(
+        req.body,
+        (req as any).user?.role
+      );
       logger.info(`Admin user created successfully: ${adminUser.id}`);
       successResponse(res, 201, 'Admin user created successfully', adminUser);
     } catch (error: any) {
@@ -54,7 +57,11 @@ export const AdminUserController = {
     const { id } = req.params;
     try {
       logger.info(`Updating admin user: ${id}`);
-      const adminUser = await AdminUserService.updateAdminUser(id, req.body);
+      const adminUser = await AdminUserService.updateAdminUser(
+        id,
+        req.body,
+        (req as any).user?.role
+      );
       logger.info(`Admin user updated successfully: ${id}`);
       successResponse(res, 200, 'Admin user updated successfully', adminUser);
     } catch (error: any) {

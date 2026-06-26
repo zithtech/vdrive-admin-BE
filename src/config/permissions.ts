@@ -170,7 +170,8 @@ export const VDRIVE_MODULES = {
   dashboard: {
     label: 'Dashboard',
     icon: 'home',
-    permissions: [VDrivePermissions.DASHBOARD_READ, VDrivePermissions.DASHBOARD_MANAGE],
+    // Dashboard is an overview page — view-only. No create/update/delete/manage.
+    permissions: [VDrivePermissions.DASHBOARD_READ],
   },
   customers: {
     label: 'Customers',
