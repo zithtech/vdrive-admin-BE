@@ -571,6 +571,32 @@ export class DriverManagementRepository {
     const complianceHealth =
       totalDriversCount > 0 ? Math.round((verifiedDriversCount / totalDriversCount) * 100) : 100;
 
+    // Onboarding pipeline counts — computed here so the dashboard needs only
+    // `dashboard.read`. Logic mirrors the former client-side filter exactly so the
+    // numbers stay identical (was OnboardingMetrics fetching the full /api/drivers list).
+    const pipelineResult = await query(
+      'SELECT status, onboarding_status FROM drivers WHERE is_deleted = false'
+    );
+    const pipeline = pipelineResult.rows.filter(
+      (d: { status?: string; onboarding_status?: string }) =>
+        d.status === 'pending' ||
+        d.status === 'pending_verification' ||
+        d.status === 'rejected' ||
+        (d.onboarding_status &&
+          !['ONBOARDING_COMPLETED', 'SUBSCRIPTION_ACTIVE', 'ACTIVE'].includes(d.onboarding_status))
+    );
+    const onboardingPending = pipeline.filter(
+      (d: { status?: string; onboarding_status?: string }) =>
+        d.status !== 'rejected' && d.onboarding_status !== 'DOCS_REJECTED'
+    ).length;
+    const onboardingDocRejected = pipeline.filter(
+      (d: { status?: string; onboarding_status?: string }) =>
+        d.status !== 'rejected' && d.onboarding_status === 'DOCS_REJECTED'
+    ).length;
+    const onboardingRejected = pipeline.filter(
+      (d: { status?: string }) => d.status === 'rejected'
+    ).length;
+
     const activeTripsCount = parseInt(onTripResult.rows[0]?.count || '0');
     const onlineCount = parseInt(onlineResult.rows[0]?.count || '0');
 
@@ -613,6 +639,9 @@ export class DriverManagementRepository {
       todayRevenue: stats.todayRevenue,
       pendingVerifications: parseInt(pendingVerificationsResult.rows[0]?.count || '0'),
       documentExpiryAlerts: parseInt(documentExpiryAlertsResult.rows[0]?.count || '0'),
+      onboardingPending,
+      onboardingDocRejected,
+      onboardingRejected,
       complianceHealth,
       lastSyncAt: new Date().toISOString(),
       trends: {

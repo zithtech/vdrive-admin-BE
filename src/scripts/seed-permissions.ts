@@ -1,47 +1,12 @@
-import fs from 'fs';
-import path from 'path';
 import dotenv from 'dotenv';
 import { connectDatabase, query, pool } from '../shared/database';
 
 // Load environment variables
 dotenv.config();
 
-// Paths
-const frontendConfigPath = path.resolve(
-  __dirname,
-  '../../../vDrive-admin/src/config/permissions.ts'
-);
-const backendConfigPath = path.resolve(__dirname, '../config/permissions.ts');
-
-function copyConfigFromFrontend() {
-  try {
-    if (fs.existsSync(frontendConfigPath)) {
-      console.log(`🔍 Found frontend permissions configuration at: ${frontendConfigPath}`);
-      const content = fs.readFileSync(frontendConfigPath, 'utf8');
-
-      // Ensure target directory exists
-      const dir = path.dirname(backendConfigPath);
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-      }
-
-      fs.writeFileSync(backendConfigPath, content, 'utf8');
-      console.log(`✅ Successfully synced local backend configuration with frontend`);
-    } else {
-      console.log(`⚠️ Frontend configuration file not found at ${frontendConfigPath}.`);
-      console.log(`ℹ️ Falling back to existing backend configuration at ${backendConfigPath}`);
-    }
-  } catch (error) {
-    console.error('❌ Failed to copy configuration file:', error);
-  }
-}
-
 async function syncPermissionsToDatabase() {
-  // Copy config file first
-  copyConfigFromFrontend();
-
-  // Import config after potential copy
-  // Since TypeScript compilation is run on the fly via ts-node, we can import this file
+  // The backend config/permissions.ts is the canonical catalog (single source of
+  // truth). It is NOT copied from the frontend — both are seeded from here.
   const {
     VDRIVE_MODULES,
     VDriveSystemRoles,

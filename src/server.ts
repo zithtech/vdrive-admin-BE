@@ -10,6 +10,7 @@ const dbUser = config.db.user;
 
 import { initSocket } from './services/socket';
 import { initSubscriptionScheduler } from './services/subscriptionScheduler';
+import { initUserEventSubscriber } from './shared/eventBus';
 
 async function startServer() {
   try {
@@ -25,7 +26,8 @@ async function startServer() {
       logger.info(`Health check: http://localhost:${PORT}`);
     });
 
-    initSocket(server);
+    const io = initSocket(server);
+    initUserEventSubscriber(io); // subscribe to events from the user backend (Redis pub/sub)
     initSubscriptionScheduler();
 
     const shutdown = (signal: string) => {
