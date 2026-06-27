@@ -40,6 +40,17 @@ async function resolveRole(input: {
   };
 }
 
+/**
+ * Escalation guard: only a super_admin may assign the super_admin role (which grants
+ * the bypass). A delegated admin with admins.create/update can manage admins but can
+ * neither mint a new super_admin nor self-elevate to one.
+ */
+function assertCanAssignRole(targetRole: string, actorRole?: string): void {
+  if (targetRole === 'super_admin' && actorRole !== 'super_admin') {
+    throw { statusCode: 403, message: 'Only a super admin can assign the super_admin role' };
+  }
+}
+
 export const AdminUserService = {
   async getAdminUsers(): Promise<PublicAdminUser[]> {
     return AdminUserRepository.findAll();
@@ -53,20 +64,24 @@ export const AdminUserService = {
     return adminUser;
   },
 
-  async createAdminUser(data: {
-    name: string;
-    email: string;
-    password: string;
-    contact?: string;
-    role?: string;
-    role_id?: string;
-  }): Promise<PublicAdminUser> {
+  async createAdminUser(
+    data: {
+      name: string;
+      email: string;
+      password: string;
+      contact?: string;
+      role?: string;
+      role_id?: string;
+    },
+    actorRole?: string
+  ): Promise<PublicAdminUser> {
     const existing = await AdminUserRepository.findByEmail(data.email);
     if (existing) {
       throw { statusCode: 409, message: 'Email already in use' };
     }
     const hashedPassword = await bcrypt.hash(data.password, 10);
     const { role, role_id } = await resolveRole({ role: data.role, role_id: data.role_id });
+    assertCanAssignRole(role, actorRole);
     return AdminUserRepository.create({
       name: data.name,
       email: data.email,
@@ -85,7 +100,8 @@ export const AdminUserService = {
       contact: string;
       role: string;
       role_id: string | null;
-    }>
+    }>,
+    actorRole?: string
   ): Promise<PublicAdminUser> {
     const existing = await AdminUserRepository.findById(id);
     if (!existing) {
@@ -102,6 +118,7 @@ export const AdminUserService = {
     const patch = { ...data };
     if (data.role !== undefined || data.role_id !== undefined) {
       const resolved = await resolveRole({ role: data.role, role_id: data.role_id ?? undefined });
+      assertCanAssignRole(resolved.role, actorRole);
       patch.role = resolved.role;
       patch.role_id = resolved.role_id;
     }
