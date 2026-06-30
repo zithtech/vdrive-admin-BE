@@ -2,7 +2,7 @@ import { query } from '../../shared/database';
 import { AdminUser, PublicAdminUser } from './adminUser.model';
 
 const SAFE_COLUMNS =
-  'id, name, email, contact, role, role_id, created_at, updated_at, deleted_at, is_deleted';
+  'id, name, email, contact, role, role_id, email_verified, created_at, updated_at, deleted_at, is_deleted';
 
 export const AdminUserRepository = {
   async findAll(): Promise<PublicAdminUser[]> {
@@ -28,6 +28,14 @@ export const AdminUserRepository = {
     return result.rows[0] || null;
   },
 
+  async findWithTokensByEmail(email: string): Promise<AdminUser | null> {
+    const result = await query(
+      `SELECT * FROM admin_users WHERE email = $1 AND is_deleted = false`,
+      [email]
+    );
+    return result.rows[0] || null;
+  },
+
   async create(data: {
     name: string;
     password: string;
@@ -35,12 +43,13 @@ export const AdminUserRepository = {
     contact: string | null;
     role: string;
     role_id?: string | null;
+    verification_token: string;
   }): Promise<PublicAdminUser> {
     const result = await query(
-      `INSERT INTO admin_users (name, password, email, contact, role, role_id, is_deleted)
-       VALUES ($1, $2, $3, $4, $5, $6, false)
+      `INSERT INTO admin_users (name, password, email, contact, role, role_id, email_verified, verification_token, is_deleted)
+       VALUES ($1, $2, $3, $4, $5, $6, false, $7, false)
        RETURNING ${SAFE_COLUMNS}`,
-      [data.name, data.password, data.email, data.contact, data.role, data.role_id || null]
+      [data.name, data.password, data.email, data.contact, data.role, data.role_id || null, data.verification_token]
     );
     return result.rows[0];
   },
@@ -98,6 +107,46 @@ export const AdminUserRepository = {
     const result = await query(
       'UPDATE admin_users SET is_deleted = true, deleted_at = NOW() WHERE id = $1 AND is_deleted = false',
       [id]
+    );
+    return (result.rowCount || 0) > 0;
+  },
+
+  async findByVerificationToken(token: string): Promise<AdminUser | null> {
+    const result = await query(
+      `SELECT * FROM admin_users WHERE verification_token = $1 AND is_deleted = false`,
+      [token]
+    );
+    return result.rows[0] || null;
+  },
+
+  async verifyEmail(id: string): Promise<boolean> {
+    const result = await query(
+      `UPDATE admin_users SET email_verified = true, verification_token = null, updated_at = NOW() WHERE id = $1 AND is_deleted = false`,
+      [id]
+    );
+    return (result.rowCount || 0) > 0;
+  },
+
+  async updateVerificationToken(id: string, token: string): Promise<boolean> {
+    const result = await query(
+      `UPDATE admin_users SET verification_token = $2, updated_at = NOW() WHERE id = $1 AND is_deleted = false`,
+      [id, token]
+    );
+    return (result.rowCount || 0) > 0;
+  },
+
+  async updateResetToken(id: string, token: string, expiry: Date): Promise<boolean> {
+    const result = await query(
+      `UPDATE admin_users SET reset_token = $2, reset_token_expiry = $3, updated_at = NOW() WHERE id = $1 AND is_deleted = false`,
+      [id, token, expiry]
+    );
+    return (result.rowCount || 0) > 0;
+  },
+
+  async updatePassword(id: string, hashedPassword: string): Promise<boolean> {
+    const result = await query(
+      `UPDATE admin_users SET password = $2, reset_token = null, reset_token_expiry = null, updated_at = NOW() WHERE id = $1 AND is_deleted = false`,
+      [id, hashedPassword]
     );
     return (result.rowCount || 0) > 0;
   },

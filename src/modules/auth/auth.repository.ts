@@ -5,7 +5,7 @@ import { AdminUser } from '../admin-users/adminUser.model';
 export const AuthRepository = {
   async getUserData(data: { user_name: string }): Promise<AdminUser> {
     const result = await query(
-      'SELECT id, name, password, role FROM admin_users WHERE email = $1',
+      'SELECT id, name, password, role, email_verified FROM admin_users WHERE email = $1',
       [data.user_name]
     );
     return result.rows[0];
@@ -65,5 +65,23 @@ export const AuthRepository = {
   async getAllSystemPermissions(): Promise<{ module: string; action: string }[]> {
     const result = await query('SELECT module, action FROM permissions');
     return result.rows;
+  },
+
+  async updateProfile(userId: string, data: { contact?: string }): Promise<void> {
+    const fields = [];
+    const values = [];
+    let queryStr = 'UPDATE admin_users SET ';
+    
+    if (data.contact !== undefined) {
+      fields.push(`contact = $${fields.length + 1}`);
+      values.push(data.contact);
+    }
+    
+    if (fields.length === 0) return;
+    
+    queryStr += fields.join(', ') + ` WHERE id = $${fields.length + 1}`;
+    values.push(userId);
+    
+    await query(queryStr, values);
   },
 };
