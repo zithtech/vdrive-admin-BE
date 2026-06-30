@@ -57,48 +57,6 @@ export const AuthController = {
     }
   },
 
-  async forgotPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
-    const { user_name } = req.body;
-
-    try {
-      logger.info(`Password reset requested for: ${user_name || 'unknown'}`);
-
-      if (!user_name?.trim()) {
-        throw { statusCode: 400, message: 'Username is required' };
-      }
-
-      await AuthService.forgotPassword({ user_name });
-
-      logger.info(`Password reset link sent successfully to: ${user_name}`);
-      successResponse(res, 200, 'Forgot password link sent successfully');
-    } catch (error: any) {
-      logger.warn(`Password reset request failed for ${user_name || 'unknown'}: ${error.message}`);
-      next(error);
-    }
-  },
-
-  async resetPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
-    const { reset_token, new_password } = req.body;
-
-    try {
-      logger.info('Password reset attempt with token');
-
-      if (!reset_token?.trim()) {
-        throw { statusCode: 400, message: 'Reset token is required' };
-      }
-      if (!new_password?.trim()) {
-        throw { statusCode: 400, message: 'New password is required' };
-      }
-
-      await AuthService.resetPassword({ reset_token, new_password });
-
-      logger.info('Password reset completed successfully');
-      successResponse(res, 200, 'Password reset successfully');
-    } catch (error: any) {
-      logger.warn(`Password reset failed with token: ${error.message}`);
-      next(error);
-    }
-  },
 
   async refreshAccessToken(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -182,4 +140,161 @@ export const AuthController = {
       next(error);
     }
   },
+
+  async changePassword(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    const { oldPassword, newPassword } = req.body;
+    const userId = req.user?.id;
+
+    try {
+      if (!userId) {
+        throw { statusCode: 401, message: 'User not authenticated' };
+      }
+
+      logger.info(`Password change attempt for user ID: ${userId}`);
+
+      if (!oldPassword?.trim() || !newPassword?.trim()) {
+        throw { statusCode: 400, message: 'Old and new passwords are required' };
+      }
+
+      await AuthService.changePassword(userId, oldPassword, newPassword);
+
+      logger.info(`Password changed successfully for user ID: ${userId}`);
+      successResponse(res, 200, 'Password updated successfully');
+    } catch (error: any) {
+      logger.warn(`Password change failed for user ID: ${userId}: ${error.message}`);
+      next(error);
+    }
+  },
+
+  async updateProfile(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    const userId = req.user?.id;
+    const { contact } = req.body;
+
+    try {
+      if (!userId) {
+        throw { statusCode: 401, message: 'User not authenticated' };
+      }
+
+      logger.info(`Profile update attempt for user ID: ${userId}`);
+
+      await AuthService.updateProfile(userId, { contact });
+
+      logger.info(`Profile updated successfully for user ID: ${userId}`);
+      successResponse(res, 200, 'Profile updated successfully');
+    } catch (error: any) {
+      logger.warn(`Profile update failed for user ID: ${userId}: ${error.message}`);
+      next(error);
+    }
+  },
+
+  async verifyEmail(req: Request, res: Response, next: NextFunction): Promise<void> {
+    const { token } = req.body;
+    try {
+      if (!token?.trim()) {
+        throw { statusCode: 400, message: 'Verification token is required' };
+      }
+
+      await AuthService.verifyEmail(token);
+      
+      logger.info('Email verified successfully');
+      successResponse(res, 200, 'Email verified successfully');
+    } catch (error: any) {
+      logger.warn(`Email verification failed: ${error.message}`);
+      next(error);
+    }
+  },
+
+  async resendVerificationEmail(req: Request, res: Response, next: NextFunction): Promise<void> {
+    const { email } = req.body;
+    try {
+      if (!email?.trim()) {
+        throw { statusCode: 400, message: 'Email is required' };
+      }
+
+      await AuthService.resendVerificationEmail(email);
+      
+      logger.info(`Verification email resent to ${email}`);
+      successResponse(res, 200, 'Verification email sent successfully');
+    } catch (error: any) {
+      logger.warn(`Resending verification email failed for ${email}: ${error.message}`);
+      next(error);
+    }
+  },
+
+  async forgotPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+    const { email } = req.body;
+    try {
+      if (!email?.trim()) {
+        throw { statusCode: 400, message: 'Email is required' };
+      }
+
+      await AuthService.forgotPassword(email);
+      
+      logger.info(`OTP sent to ${email} for password reset`);
+      successResponse(res, 200, 'If this email is registered, an OTP has been sent.');
+    } catch (error: any) {
+      logger.warn(`Forgot password failed for ${email}: ${error.message}`);
+      next(error);
+    }
+  },
+
+  async resetPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+    const { email, otp, newPassword } = req.body;
+    try {
+      if (!email?.trim() || !otp?.trim() || !newPassword?.trim()) {
+        throw { statusCode: 400, message: 'Email, OTP, and new password are required' };
+      }
+
+      await AuthService.resetPassword(email, otp, newPassword);
+      
+      logger.info(`Password successfully reset for ${email}`);
+      successResponse(res, 200, 'Password has been reset successfully');
+    } catch (error: any) {
+      logger.warn(`Reset password failed for ${email}: ${error.message}`);
+      next(error);
+    }
+  },
+
+  // async forgotPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+  //   const { user_name } = req.body;
+
+  //   try {
+  //     logger.info(`Password reset requested for: ${user_name || 'unknown'}`);
+
+  //     if (!user_name?.trim()) {
+  //       throw { statusCode: 400, message: 'Username is required' };
+  //     }
+
+  //     await AuthService.forgotPassword({ user_name });
+
+  //     logger.info(`Password reset link sent successfully to: ${user_name}`);
+  //     successResponse(res, 200, 'Forgot password link sent successfully');
+  //   } catch (error: any) {
+  //     logger.warn(`Password reset request failed for ${user_name || 'unknown'}: ${error.message}`);
+  //     next(error);
+  //   }
+  // },
+
+  // async resetPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+  //   const { reset_token, new_password } = req.body;
+
+  //   try {
+  //     logger.info('Password reset attempt with token');
+
+  //     if (!reset_token?.trim()) {
+  //       throw { statusCode: 400, message: 'Reset token is required' };
+  //     }
+  //     if (!new_password?.trim()) {
+  //       throw { statusCode: 400, message: 'New password is required' };
+  //     }
+
+  //     await AuthService.resetPassword({ reset_token, new_password });
+
+  //     logger.info('Password reset completed successfully');
+  //     successResponse(res, 200, 'Password reset successfully');
+  //   } catch (error: any) {
+  //     logger.warn(`Password reset failed with token: ${error.message}`);
+  //     next(error);
+  //   }
+  // },
 };

@@ -2,6 +2,10 @@ import { AdminUserRepository } from './adminUser.repository';
 import { RolesRepository } from '../roles/roles.repository';
 import { PublicAdminUser } from './adminUser.model';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
+import { EmailValidator } from '../../utilities/email.validator';
+import { sendMail } from '../../shared/sendEmail';
+import config from '../../config';
 
 /**
  * The admin_users.role column is constrained to 'admin' | 'super_admin' and serves
@@ -75,6 +79,8 @@ export const AdminUserService = {
     },
     actorRole?: string
   ): Promise<PublicAdminUser> {
+    await EmailValidator.validateAdvanced(data.email);
+
     const existing = await AdminUserRepository.findByEmail(data.email);
     if (existing) {
       throw { statusCode: 409, message: 'Email already in use' };
@@ -82,14 +88,33 @@ export const AdminUserService = {
     const hashedPassword = await bcrypt.hash(data.password, 10);
     const { role, role_id } = await resolveRole({ role: data.role, role_id: data.role_id });
     assertCanAssignRole(role, actorRole);
-    return AdminUserRepository.create({
+    
+    const verification_token = crypto.randomBytes(32).toString('hex');
+    
+    const newUser = await AdminUserRepository.create({
       name: data.name,
       email: data.email,
       password: hashedPassword,
       contact: data.contact || null,
       role,
       role_id,
+      verification_token,
     });
+
+    const frontendUrl = process.env.NODE_ENV === 'production' ? config.prodURL : 'http://localhost:5174';
+    const verifyUrl = `${frontendUrl}/verify-email?token=${verification_token}`;
+    
+    sendMail({
+      to: [data.email],
+      subject: 'Verify your Admin Account',
+      body: `
+        <h2>Welcome to vDrive Admin</h2>
+        <p>Please verify your email address by clicking the link below:</p>
+        <a href="${verifyUrl}">Verify Email</a>
+      `,
+    });
+
+    return newUser;
   },
 
   async updateAdminUser(

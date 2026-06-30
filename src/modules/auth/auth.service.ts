@@ -1,5 +1,5 @@
-// src/modules/users/user.service.ts
 import { AuthRepository } from './auth.repository';
+import { AdminUserRepository } from '../admin-users/adminUser.repository';
 import * as bcrypt from 'bcrypt';
 import jwt, { JwtPayload, SignOptions } from 'jsonwebtoken';
 import config from '../../config';
@@ -72,6 +72,11 @@ export const AuthService = {
     if (!userData) {
       throw { statusCode: 401, message: 'Invalid credentials' };
     }
+    
+    if (userData.email_verified === false) {
+      throw { statusCode: 403, message: 'Please verify your email address before logging in' };
+    }
+
     const isPasswordValid = await AuthService.validatePassword(data?.password, userData?.password);
     if (!isPasswordValid) {
       throw { statusCode: 401, message: 'Invalid credentials' };
@@ -83,54 +88,6 @@ export const AuthService = {
 
     const tokens = AuthService.generateTokens(payload);
     return tokens;
-  },
-  async forgotPassword(data: { user_name: string }): Promise<boolean> {
-    const userData = await AuthRepository.getUserData({ user_name: data?.user_name });
-    if (!userData) {
-      throw { statusCode: 404, message: 'User not found' };
-    }
-    const resetToken = AuthService.generateResetToken();
-    const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour expiry
-
-    await AuthRepository.storeResetToken({
-      userId: userData.id,
-      reset_token: resetToken,
-      expires_at: resetTokenExpiry,
-    });
-
-    const resetUrl = `${config.prodURL}/reset-password?token=${resetToken}`;
-    sendMail({
-      to: [data?.user_name],
-      subject: 'Password Reset Request',
-      body: `
-        <h2>Password Reset</h2>
-        <p>You requested a password reset. Click the link below to reset your password:</p>
-        <a href="${resetUrl}">Reset Password</a>
-        <p>This link will expire in 1 hour.</p>
-        <p>If you didn't request this, please ignore this email.</p>
-      `,
-    });
-    return true;
-  },
-  async resetPassword(data: { reset_token: string; new_password: string }): Promise<boolean> {
-    const user = await AuthRepository.getUserDataBasedOnResetToken({
-      reset_token: data.reset_token,
-    });
-    if (!user) {
-      throw { statusCode: 400, message: 'Invalid or expired reset token' };
-    }
-    if (!user?.reset_token_expiry || new Date() > new Date(user?.reset_token_expiry)) {
-      throw { statusCode: 400, message: 'Reset token has expired' };
-    }
-    const hashedPassword = await AuthService.hashPassword(data.new_password);
-    await AuthRepository.updatePassword({ userId: user.id, new_password: hashedPassword });
-    // Clear reset token and expiry
-    await AuthRepository.storeResetToken({
-      userId: user.id,
-      reset_token: '',
-      expires_at: null,
-    });
-    return true;
   },
 
   async getMe(userId: string): Promise<any> {
@@ -156,5 +113,119 @@ export const AuthService = {
       role: userProfile.role,
       permissions,
     };
+  },
+
+  async changePassword(userId: string, oldPassword: string, newPassword: string): Promise<boolean> {
+    const user = await AuthRepository.getUserDataById(userId);
+    
+    if (!user) {
+      throw { statusCode: 404, message: 'User not found' };
+    }
+
+    const isPasswordValid = await AuthService.validatePassword(oldPassword, user.password);
+    if (!isPasswordValid) {
+      throw { statusCode: 400, message: 'Incorrect old password' };
+    }
+
+    const hashedNewPassword = await AuthService.hashPassword(newPassword);
+    await AuthRepository.updatePassword({ userId, new_password: hashedNewPassword });
+
+    return true;
+  },
+
+  async verifyEmail(token: string): Promise<boolean> {
+    const user = await AdminUserRepository.findByVerificationToken(token);
+    if (!user) {
+      throw { statusCode: 400, message: 'Invalid or expired verification token' };
+    }
+    
+    await AdminUserRepository.verifyEmail(user.id);
+    return true;
+  },
+
+  async resendVerificationEmail(email: string): Promise<boolean> {
+    const user = await AdminUserRepository.findByEmail(email);
+    if (!user) {
+      throw { statusCode: 404, message: 'User not found' };
+    }
+    if (user.email_verified) {
+      throw { statusCode: 400, message: 'Email is already verified' };
+    }
+
+    const verification_token = require('crypto').randomBytes(32).toString('hex');
+    await AdminUserRepository.updateVerificationToken(user.id, verification_token);
+
+    const frontendUrl = process.env.NODE_ENV === 'production' ? config.prodURL : 'http://localhost:5174';
+    const verifyUrl = `${frontendUrl}/verify-email?token=${verification_token}`;
+    
+    sendMail({
+      to: [user.email],
+      subject: 'Verify your Admin Account',
+      body: `
+        <h2>Welcome to vDrive Admin</h2>
+        <p>Please verify your email address by clicking the link below:</p>
+        <a href="${verifyUrl}">Verify Email</a>
+      `,
+    });
+
+    return true;
+  },
+
+  async forgotPassword(email: string): Promise<boolean> {
+    const user = await AdminUserRepository.findWithTokensByEmail(email);
+    if (!user) {
+      // Don't throw an error to prevent email enumeration, just return true
+      return true;
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digit OTP
+    const expiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes from now
+
+    await AdminUserRepository.updateResetToken(user.id, otp, expiry);
+
+    sendMail({
+      to: [user.email],
+      subject: 'Reset your Admin Password',
+      body: `
+        <h2>vDrive Admin Password Reset</h2>
+        <p>You requested a password reset. Please use the following 6-digit OTP to reset your password:</p>
+        <h3 style="letter-spacing: 5px;">${otp}</h3>
+        <p>This code will expire in 15 minutes.</p>
+        <p>If you did not request this, please ignore this email.</p>
+      `,
+    });
+
+    return true;
+  },
+
+  async resetPassword(email: string, otp: string, newPassword: string): Promise<boolean> {
+    const user = await AdminUserRepository.findWithTokensByEmail(email);
+    if (!user) {
+      throw { statusCode: 400, message: 'Invalid request' };
+    }
+
+    if (user.reset_token !== otp) {
+      throw { statusCode: 400, message: 'Invalid OTP' };
+    }
+
+    if (!user.reset_token_expiry || new Date() > user.reset_token_expiry) {
+      throw { statusCode: 400, message: 'OTP has expired. Please request a new one.' };
+    }
+
+    const hashedNewPassword = await AuthService.hashPassword(newPassword);
+    await AdminUserRepository.updatePassword(user.id, hashedNewPassword);
+
+    return true;
+  },
+
+  async updateProfile(userId: string, data: { contact?: string }): Promise<boolean> {
+    const user = await AuthRepository.getUserDataById(userId);
+    
+    if (!user) {
+      throw { statusCode: 404, message: 'User not found' };
+    }
+
+    await AuthRepository.updateProfile(userId, data);
+    return true;
   },
 };

@@ -23,8 +23,22 @@ router.post(
 
 router.post('/refresh-token', AuthController.refreshAccessToken);
 
+router.post('/verify-email', AuthController.verifyEmail);
+
+router.post('/resend-verification', AuthController.resendVerificationEmail);
+
 router.use(isAuthenticated);
 router.get('/me', AuthController.getMe);
 router.post('/signout', AuthController.signOut);
+router.post(
+  '/change-password',
+  validateBody(AuthValidation.changePasswordValidation),
+  AuthController.changePassword
+);
+router.post(
+  '/update-profile',
+  validateBody(AuthValidation.updateProfileValidation),
+  AuthController.updateProfile
+);
 
 export default router;
