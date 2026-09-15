@@ -619,6 +619,133 @@ export class DriverManagementRepository {
     }
   }
 
+  static async createDriverOnline(data: {
+    first_name: string;
+    last_name: string;
+    phone_number: string;
+    alternate_contact?: string;
+    email: string;
+    date_of_birth: string;
+    gender: string;
+    language?: string;
+    address: {
+      street: string;
+      city: string;
+      state: string;
+      country: string;
+      pincode: string;
+    };
+    documents: Array<{
+      document_type: string;
+      document_number?: string;
+      document_url: any;
+      expiry_date?: string;
+    }>;
+  }) {
+    // Use a transaction so that if any step fails, everything is rolled back
+    const client = await pool!.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      // 1. Check if phone already exists
+      const existingDriver = await client.query(
+        'SELECT id FROM drivers WHERE phone_number = $1 AND is_deleted = false',
+        [data.phone_number]
+      );
+      if (existingDriver.rows.length > 0) {
+        throw new Error('A driver with this phone number already exists');
+      }
+
+      // 2. Check if email already exists
+      if (data.email) {
+        const existingEmail = await client.query(
+          'SELECT id FROM drivers WHERE email = $1 AND is_deleted = false',
+          [data.email]
+        );
+        if (existingEmail.rows.length > 0) {
+          throw new Error('A driver with this email already exists');
+        }
+      }
+
+      // 3. Generate a unique vdrive_id
+      const vdriveIdResult = await client.query(
+        "SELECT 'VD-' || LPAD(CAST(COALESCE(MAX(CAST(SUBSTRING(vdrive_id FROM 4) AS INTEGER)), 0) + 1 AS TEXT), 7, '0') as next_id FROM drivers WHERE vdrive_id LIKE 'VD-%'"
+      );
+      const vdriveId = vdriveIdResult.rows[0]?.next_id || 'VD-0000001';
+
+      // 4. Insert the driver with PENDING status
+      const full_name = `${data.first_name} ${data.last_name}`.trim();
+      const kycData = JSON.stringify({
+        overallStatus: 'pending',
+        verifiedAt: null,
+      });
+
+      const driverResult = await client.query(
+        `INSERT INTO drivers (
+          first_name, last_name, full_name, phone_number, alternate_contact,
+          email, date_of_birth, gender, language, address,
+          vdrive_id, status, onboarding_status, documents_submitted,
+          kyc, role, rating, total_trips, total_earnings,
+          availability, is_deleted, created_at, updated_at
+        ) VALUES (
+          $1, $2, $3, $4, $5,
+          $6, $7, $8, $9, $10,
+          $11, 'pending_verification', 'DOCS_SUBMITTED', true,
+          $12, 'driver', 0, 0, 0,
+          '{"online": false, "last_active": null}'::jsonb, false, NOW(), NOW()
+        ) RETURNING id`,
+        [
+          data.first_name,
+          data.last_name,
+          full_name,
+          data.phone_number,
+          data.alternate_contact || null,
+          data.email,
+          data.date_of_birth,
+          data.gender,
+          data.language || 'en',
+          JSON.stringify(data.address),
+          vdriveId,
+          kycData,
+        ]
+      );
+
+      const driverId = driverResult.rows[0].id;
+
+      // 5. Insert documents with 'pending' status
+      if (data.documents && data.documents.length > 0) {
+        for (const doc of data.documents) {
+          const docUrl = JSON.stringify(doc.document_url);
+
+          await client.query(
+            `INSERT INTO driver_documents (
+              driver_id, document_type, document_number, document_url, status
+            ) VALUES ($1, $2, $3, $4, 'pending')`,
+            [
+              driverId,
+              doc.document_type,
+              doc.document_number || null,
+              docUrl,
+            ]
+          );
+        }
+      }
+
+      await client.query('COMMIT');
+
+      logger.info(`Online application submitted for driver ${driverId} (${vdriveId})`);
+
+      // Return the fully hydrated driver
+      return this.findById(driverId);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   static async getDashboardStats() {
     const totalResult = await query('SELECT COUNT(*) FROM drivers WHERE is_deleted = false');
     const activeResult = await query(

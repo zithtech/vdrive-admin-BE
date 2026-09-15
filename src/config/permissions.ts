@@ -151,6 +151,10 @@ export const VDrivePermissions = {
   DRIVER_OUTREACH_READ: 'drivers_outreach.read',
   DRIVER_OUTREACH_UPDATE: 'drivers_outreach.update',
   DRIVER_OUTREACH_DELETE: 'drivers_outreach.delete',
+
+  // ─── Enquiries ────────────────────────────────────────────────────
+  ENQUIRY_READ: 'enquiry.read',
+  ENQUIRY_UPDATE: 'enquiry.update',
 } as const;
 
 export type VDrivePermission = (typeof VDrivePermissions)[keyof typeof VDrivePermissions];
@@ -364,6 +368,14 @@ export const VDRIVE_MODULES = {
       VDrivePermissions.DRIVER_OUTREACH_DELETE,
     ],
   },
+  enquiries: {
+    label: 'Customer Enquiries',
+    icon: 'mail',
+    permissions: [
+      VDrivePermissions.ENQUIRY_READ,
+      VDrivePermissions.ENQUIRY_UPDATE,
+    ],
+  },
   // reports: {
   //   label: 'Reports & Analytics',
   //   icon: 'chart-bar',
@@ -472,6 +484,10 @@ export const VDRIVE_PERMISSIONS_BY_RESOURCE: Record<string, VDrivePermission[]> 
     VDrivePermissions.SUPPORT_TICKET_UPDATE,
     VDrivePermissions.SUPPORT_TICKET_DELETE,
     VDrivePermissions.SUPPORT_TICKET_MANAGE,
+  ],
+  enquiries: [
+    VDrivePermissions.ENQUIRY_READ,
+    VDrivePermissions.ENQUIRY_UPDATE,
   ],
 };
 
@@ -598,6 +614,10 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, VDrivePermission[]> = {
     VDrivePermissions.SUPPORT_TICKET_UPDATE,
     VDrivePermissions.SUPPORT_TICKET_DELETE,
     VDrivePermissions.SUPPORT_TICKET_MANAGE,
+
+    // Enquiries
+    VDrivePermissions.ENQUIRY_READ,
+    VDrivePermissions.ENQUIRY_UPDATE,
   ],
 
   // ─── USER ────────────────────────────────────────────────────────
@@ -639,5 +659,8 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, VDrivePermission[]> = {
 
     // Support Tickets
     VDrivePermissions.SUPPORT_TICKET_READ,
+
+    // Enquiries
+    VDrivePermissions.ENQUIRY_READ,
   ],
 };

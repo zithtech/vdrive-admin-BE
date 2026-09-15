@@ -281,8 +281,8 @@ export const RechargePlanService = {
     return { sentCount, scannedCount: allDrivers.length };
   },
 
-  async getPayments(page = 1, limit = 10) {
-    return await RechargePlanRepository.getPayments(page, limit);
+  async getPayments(page = 1, limit = 10, search = '', status = 'ALL') {
+    return await RechargePlanRepository.getPayments(page, limit, search, status);
   },
 
   async getDriverPayments(driverId: string) {

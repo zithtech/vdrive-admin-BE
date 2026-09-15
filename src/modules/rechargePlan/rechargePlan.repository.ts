@@ -386,46 +386,96 @@ export const RechargePlanRepository = {
     return res.rows;
   },
 
-  async getPayments(page = 1, limit = 10) {
+  async getPayments(page = 1, limit = 10, search = '', status = 'ALL') {
     const offset = (page - 1) * limit;
 
-    // Fetch total count
-    const countRes = await query('SELECT COUNT(*) FROM subscription_payments');
-    const total = parseInt(countRes.rows[0].count, 10);
+    let whereClause = 'WHERE 1=1';
+    const params: any[] = [];
+
+    if (status && status !== 'ALL') {
+      params.push(status);
+      whereClause += ` AND sp.payment_status = $${params.length}`;
+    }
+
+    if (search) {
+      params.push(`%${search}%`);
+      const searchParamIdx = params.length;
+      whereClause += ` AND (d.full_name ILIKE $${searchParamIdx} OR d.phone_number ILIKE $${searchParamIdx} OR sp.transaction_id ILIKE $${searchParamIdx})`;
+    }
+
+    // Fetch total count and stats
+    const statsQuery = `
+      SELECT 
+        COUNT(*) as total,
+        COALESCE(SUM(p.amount), 0) as total_amount,
+        COUNT(CASE WHEN p.status = 'completed' OR p.status = 'SUCCESS' THEN 1 END) as success_count,
+        COUNT(CASE WHEN p.status = 'pending' OR p.status = 'PENDING' THEN 1 END) as pending_count,
+        COUNT(CASE WHEN p.status = 'failed' OR p.status = 'FAILED' THEN 1 END) as failed_count
+      FROM payments p
+      LEFT JOIN drivers d ON p.driver_id = d.id
+      LEFT JOIN recharge_plans rp ON p.plan_id = rp.id
+      ${whereClause.replace(/sp\./g, 'p.')}
+    `;
+    const statsRes = await query(statsQuery, params);
 
     // Fetch data
-    const res = await query(
-      `SELECT 
-        sp.id, sp.amount, sp.payment_status, sp.payment_method, sp.transaction_id, sp.created_at,
+    const dataQuery = `
+      SELECT 
+        p.id, p.amount, 
+        CASE 
+          WHEN p.status = 'completed' THEN 'SUCCESS'
+          WHEN p.status = 'pending' THEN 'PENDING'
+          WHEN p.status = 'failed' THEN 'FAILED'
+          ELSE UPPER(p.status)
+        END as payment_status, 
+        'RAZORPAY' as payment_method, 
+        COALESCE(p.razorpay_payment_id, p.razorpay_order_id) as transaction_id, 
+        p.created_at,
         d.full_name as driver_name,
         d.phone_number as driver_phone,
         rp.plan_name
-       FROM subscription_payments sp
-       JOIN drivers d ON sp.driver_id = d.id
-       JOIN recharge_plans rp ON sp.plan_id = rp.id
-       ORDER BY sp.created_at DESC
-       LIMIT $1 OFFSET $2`,
-      [limit, offset]
-    );
+      FROM payments p
+      LEFT JOIN drivers d ON p.driver_id = d.id
+      LEFT JOIN recharge_plans rp ON p.plan_id = rp.id
+      ${whereClause.replace(/sp\./g, 'p.')}
+      ORDER BY p.created_at DESC
+      LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+    `;
+    const res = await query(dataQuery, [...params, limit, offset]);
 
     return {
       data: res.rows,
-      total,
+      total: parseInt(statsRes.rows[0].total, 10),
+      stats: {
+        totalAmount: Number(statsRes.rows[0].total_amount),
+        successCount: Number(statsRes.rows[0].success_count),
+        pendingCount: Number(statsRes.rows[0].pending_count),
+        failedCount: Number(statsRes.rows[0].failed_count)
+      }
     };
   },
 
   async getDriverPayments(driverId: string) {
     const res = await query(
       `SELECT 
-        sp.id, sp.amount, sp.payment_status, sp.payment_method, sp.transaction_id, sp.created_at,
+        p.id, p.amount, 
+        CASE 
+          WHEN p.status = 'completed' THEN 'SUCCESS'
+          WHEN p.status = 'pending' THEN 'PENDING'
+          WHEN p.status = 'failed' THEN 'FAILED'
+          ELSE UPPER(p.status)
+        END as payment_status, 
+        'RAZORPAY' as payment_method, 
+        COALESCE(p.razorpay_payment_id, p.razorpay_order_id) as transaction_id, 
+        p.created_at,
         rp.plan_name,
         ds.start_date as subscription_start,
         ds.expiry_date as subscription_expiry
-       FROM subscription_payments sp
-       JOIN recharge_plans rp ON sp.plan_id = rp.id
-       LEFT JOIN driver_subscriptions ds ON sp.subscription_id = ds.id
-       WHERE sp.driver_id = $1
-       ORDER BY sp.created_at DESC`,
+       FROM payments p
+       JOIN recharge_plans rp ON p.plan_id = rp.id
+       LEFT JOIN driver_subscriptions ds ON ds.driver_id = p.driver_id AND ds.plan_id = p.plan_id
+       WHERE p.driver_id = $1
+       ORDER BY p.created_at DESC`,
       [driverId]
     );
     return res.rows;

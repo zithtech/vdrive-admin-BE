@@ -9,11 +9,11 @@ import locationRoutes from '../modules/locations/location.routes';
 import hotspotRoutes from '../modules/hotspots/hotspot.routes';
 import priceSettingsRoutes from '../modules/price-settings/price.routes';
 import packageRoutes from '../modules/packages/package.routes';
-import s3Routes from '../modules/s3/s3.routes';
+import s3Routes, { s3PublicRoutes } from '../modules/s3/s3.routes';
 import driverReconciliationRoutes from '../modules/driver-reconciliation/driverReconciliation.routes';
 import rechargePlanRoutes from '../modules/rechargePlan/rechargePlan.routes';
 import pricingFareRulesRoutes from '../modules/pricing-fare-rules/pricingFareRules.routes';
-import driverManagementRoutes from '../modules/driver-management/driverManagement.routes';
+import driverManagementRoutes, { driverPublicRoutes } from '../modules/driver-management/driverManagement.routes';
 import sosManagementRoutes from '../modules/sos-management/sosManagement.routes';
 import webhookRoutes from '../modules/webhooks/webhook.routes';
 import { isServiceAuthenticated } from '../shared/serviceAuthentication';
@@ -28,6 +28,7 @@ import promoRoutes from '../modules/promo-management/promo.routes';
 import notificationRoutes from '../modules/notification-management/notification.routes';
 import rolesRoutes from '../modules/roles/roles.routes';
 import supportManagementRoutes from '../modules/support-management/supportManagement.routes';
+import { enquiryPublicRoutes, enquiryAdminRoutes } from '../modules/enquiry-management/enquiryManagement.routes';
 
 const router = Router();
 
@@ -42,6 +43,10 @@ router.use('/webhooks', isServiceAuthenticated, webhookRoutes);
 router.use('/pricing', pricingCalculatorRoutes);
 router.use('/webhooks', webhookRoutes);
 router.use('/coupons', openCouponRoutes);
+router.use('/enquiries', enquiryPublicRoutes);
+
+router.use('/public/drivers', driverPublicRoutes);
+router.use('/public/s3', s3PublicRoutes);
 
 router.use(isAuthenticated);
 
@@ -70,6 +75,7 @@ router.use('/referrals', referralManagementRoutes);
 router.use('/notification-management', notificationRoutes);
 router.use('/roles', rolesRoutes);
 router.use('/support-management', supportManagementRoutes);
+router.use('/enquiries', enquiryAdminRoutes);
 
 router.get('/internal/trip-alert', (req, res) => {
   const { trip, secret } = req.body;

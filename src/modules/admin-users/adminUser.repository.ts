@@ -105,7 +105,11 @@ export const AdminUserRepository = {
 
   async softDelete(id: string): Promise<boolean> {
     const result = await query(
-      'UPDATE admin_users SET is_deleted = true, deleted_at = NOW() WHERE id = $1 AND is_deleted = false',
+      `UPDATE admin_users 
+       SET is_deleted = true, 
+           deleted_at = NOW(),
+           email = email || '_deleted_' || EXTRACT(EPOCH FROM NOW())
+       WHERE id = $1 AND is_deleted = false`,
       [id]
     );
     return (result.rowCount || 0) > 0;

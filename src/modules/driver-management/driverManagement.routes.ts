@@ -99,4 +99,7 @@ router.patch(
   DriverManagementController.updateDriver
 );
 
+export const driverPublicRoutes = Router();
+driverPublicRoutes.post('/onboarding', DriverManagementController.createDriverPublic);
+
 export default router;

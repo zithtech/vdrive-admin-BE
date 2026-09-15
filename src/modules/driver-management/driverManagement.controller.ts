@@ -122,6 +122,122 @@ export const DriverManagementController = {
     }
   },
 
+  async createDriverPublic(req: Request, res: Response, next: NextFunction) {
+    try {
+      const {
+        first_name,
+        last_name,
+        phone_number,
+        alternate_contact,
+        email,
+        date_of_birth,
+        gender,
+        language,
+        address,
+        documents,
+      } = req.body;
+
+      // Validate required fields
+      const missingFields: string[] = [];
+      if (!first_name) missingFields.push('first_name');
+      if (!last_name) missingFields.push('last_name');
+      if (!phone_number) missingFields.push('phone_number');
+      if (!email) missingFields.push('email');
+      if (!date_of_birth) missingFields.push('date_of_birth');
+      if (!gender) missingFields.push('gender');
+      if (!address) missingFields.push('address');
+
+      if (missingFields.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Missing required fields: ${missingFields.join(', ')}`,
+        });
+      }
+
+      const driver = await DriverManagementRepository.createDriverOnline({
+        first_name,
+        last_name,
+        phone_number,
+        alternate_contact,
+        email,
+        date_of_birth,
+        gender,
+        language,
+        address,
+        documents: documents || [],
+      });
+
+      // Notify user-backend about the new pending driver application
+      notifyUserBackend('ACCOUNT_STATUS_UPDATE', {
+        driverId: driver?.id,
+        vdriveId: driver?.vdrive_id,
+        status: 'pending_verification',
+        reason: 'Online onboarding application submitted',
+      });
+
+      return res.status(201).json({
+        success: true,
+        message: 'Application submitted successfully',
+        data: driver,
+      });
+    } catch (error: any) {
+      if (
+        error.message?.includes('already exists')
+      ) {
+        return res.status(409).json({
+          success: false,
+          message: error.message,
+        });
+      }
+      next(error);
+    }
+  },
+
+  async updateDriverStatus(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const { status, status_reason, ...profileData } = req.body || {};
+
+      if (status) {
+        await DriverManagementRepository.updateStatus(id, status, status_reason);
+      }
+
+      let updatedDriver = null;
+      if (Object.keys(profileData).length > 0) {
+        updatedDriver = await DriverManagementRepository.updateProfile(id, profileData);
+      } else if (status) {
+        updatedDriver = await DriverManagementRepository.findById(id);
+      }
+
+      if (status && updatedDriver) {
+        notifyUserBackend('ACCOUNT_STATUS_UPDATE', {
+          driverId: updatedDriver.id,
+          vdriveId: updatedDriver.vdrive_id,
+          status,
+          reason: status_reason || null,
+        });
+
+        // Placeholder for FCM Push Notification:
+        // await FcmService.sendPushNotification(updatedDriver.id, `Account ${status}`, status_reason);
+      }
+
+      if (profileData.subscription_eligibility && updatedDriver) {
+        notifyUserBackend('PLAN_ELIGIBILITY_UPDATE', {
+          driverId: updatedDriver.id,
+          eligibility: profileData.subscription_eligibility,
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Driver updated successfully',
+        data: updatedDriver,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
   async updateDriver(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
