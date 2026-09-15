@@ -6,6 +6,7 @@ import * as crypto from 'crypto';
 import { EmailValidator } from '../../utilities/email.validator';
 import { sendMail } from '../../shared/sendEmail';
 import config from '../../config';
+import { logger } from '../../shared/logger';
 
 /**
  * The admin_users.role column is constrained to 'admin' | 'super_admin' and serves
@@ -103,12 +104,13 @@ export const AdminUserService = {
 
     const frontendUrl = process.env.NODE_ENV === 'production' ? config.prodURL : 'http://localhost:5174';
     const verifyUrl = `${frontendUrl}/verify-email?token=${verification_token}`;
+    logger.info(`${frontendUrl} , ${verifyUrl}`);
     
     sendMail({
       to: [data.email],
       subject: 'Verify your Admin Account',
       body: `
-        <h2>Welcome to vDrive Admin</h2>
+        <h2>Welcome to T2Drive Admin</h2>
         <p>Please verify your email address by clicking the link below:</p>
         <a href="${verifyUrl}">Verify Email</a>
       `,
