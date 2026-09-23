@@ -93,7 +93,7 @@ export const RechargePlanRepository = {
       `SELECT 
         ds.id, 
         d.id as driver_id,
-        d.vdrive_id,
+        d.t2d_id as t2driver,
         d.full_name as driver_name, 
         d.phone_number as driver_phone, 
         d.email as driver_email,
@@ -125,7 +125,7 @@ export const RechargePlanRepository = {
       `SELECT 
         ds.id, 
         d.id as driver_id,
-        d.vdrive_id,
+        d.t2d_id as t2driver,
         d.full_name as driver_name, 
         d.phone_number as driver_phone, 
         d.email as driver_email,
@@ -157,7 +157,7 @@ export const RechargePlanRepository = {
       `SELECT 
         ds.id, 
         ds.driver_id, 
-        d.vdrive_id,
+        d.t2d_id as t2driver,
         d.full_name as driver_name, 
         d.phone_number as driver_phone,
         COALESCE(
@@ -184,7 +184,7 @@ export const RechargePlanRepository = {
       `SELECT 
         ds.id, 
         ds.driver_id, 
-        d.vdrive_id,
+        d.t2d_id as t2driver,
         d.full_name as driver_name, 
         d.phone_number as driver_phone,
         COALESCE(
