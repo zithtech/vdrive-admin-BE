@@ -90,7 +90,7 @@ export const SupportManagementRepository = {
   ): Promise<{ tickets: any[]; total: number }> {
     let countSql = `SELECT COUNT(*) FROM support_tickets`;
     let dataSql = `
-      SELECT st.*, d.full_name as driver_name, d.phone_number as driver_phone, d.vdrive_id
+      SELECT st.*, d.full_name as driver_name, d.phone_number as driver_phone, d.t2d_id as t2driver
       FROM support_tickets st
       LEFT JOIN drivers d ON d.id = st.driver_id
     `;
@@ -122,7 +122,7 @@ export const SupportManagementRepository = {
 
   async findTicketById(id: string): Promise<any | null> {
     const sql = `
-      SELECT st.*, d.full_name as driver_name, d.phone_number as driver_phone, d.vdrive_id
+      SELECT st.*, d.full_name as driver_name, d.phone_number as driver_phone, d.t2d_id as t2driver
       FROM support_tickets st
       LEFT JOIN drivers d ON d.id = st.driver_id
       WHERE st.id = $1

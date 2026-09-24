@@ -9,5 +9,6 @@ const router = Router();
 // 'sos' module and switch these checks over.
 router.get('/active', requirePermission('drivers', 'read'), SosManagementController.getActiveSos);
 router.post('/resolve', requirePermission('drivers', 'update'), SosManagementController.resolveSos);
+router.get('/history', requirePermission('drivers', 'read'), SosManagementController.getHistory);
 
 export default router;

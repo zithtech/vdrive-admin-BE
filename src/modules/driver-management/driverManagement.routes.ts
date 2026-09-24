@@ -18,6 +18,11 @@ router.get(
   DriverManagementController.getDashboardStats
 );
 router.get(
+  '/dashboard-stats/rides-overview',
+  requirePermission('dashboard', 'read'),
+  DriverManagementController.getRidesOverview
+);
+router.get(
   '/documents/history/:document_id',
   requirePermission('drivers', 'read'),
   DriverManagementController.getDocumentHistory

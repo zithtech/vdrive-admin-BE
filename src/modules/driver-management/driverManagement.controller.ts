@@ -99,7 +99,7 @@ export const DriverManagementController = {
       // Notify user-backend about the new driver
       notifyUserBackend('ACCOUNT_STATUS_UPDATE', {
         driverId: driver?.id,
-        vdriveId: driver?.vdrive_id,
+        vdriveId: driver?.t2driver,
         status: 'active',
         reason: 'Offline onboarding by admin',
       });
@@ -170,7 +170,7 @@ export const DriverManagementController = {
       // Notify user-backend about the new pending driver application
       notifyUserBackend('ACCOUNT_STATUS_UPDATE', {
         driverId: driver?.id,
-        vdriveId: driver?.vdrive_id,
+        vdriveId: driver?.t2driver,
         status: 'pending_verification',
         reason: 'Online onboarding application submitted',
       });
@@ -212,7 +212,7 @@ export const DriverManagementController = {
       if (status && updatedDriver) {
         notifyUserBackend('ACCOUNT_STATUS_UPDATE', {
           driverId: updatedDriver.id,
-          vdriveId: updatedDriver.vdrive_id,
+          vdriveId: updatedDriver.t2driver,
           status,
           reason: status_reason || null,
         });
@@ -257,7 +257,7 @@ export const DriverManagementController = {
       if (status && updatedDriver) {
         notifyUserBackend('ACCOUNT_STATUS_UPDATE', {
           driverId: updatedDriver.id,
-          vdriveId: updatedDriver.vdrive_id,
+          vdriveId: updatedDriver.t2driver,
           status,
           reason: status_reason || null,
         });
@@ -296,7 +296,7 @@ export const DriverManagementController = {
       if (updatedDriver) {
         notifyUserBackend('ACCOUNT_STATUS_UPDATE', {
           driverId: updatedDriver.id,
-          vdriveId: updatedDriver.vdrive_id,
+          vdriveId: updatedDriver.t2driver,
           status: updatedDriver.status,
           kyc_status: updatedDriver.kyc_status,
           reason: kyc_status === 'verified' ? 'KYC Verified' : 'KYC Rejected',
@@ -491,6 +491,19 @@ export const DriverManagementController = {
       return res.status(200).json({
         success: true,
         data: stats,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async getRidesOverview(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { startDate, endDate } = req.query as { startDate?: string; endDate?: string };
+      const data = await DriverManagementRepository.getRidesOverview(startDate, endDate);
+      return res.status(200).json({
+        success: true,
+        data,
       });
     } catch (error) {
       next(error);

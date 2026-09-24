@@ -86,7 +86,7 @@ const transformDriverUrls = (driver: any) => {
 export class DriverManagementRepository {
   static async findAll(limit: number = 50, offset: number = 0) {
     const result = await query(
-      `SELECT d.*, 
+      `SELECT d.*, d.t2d_id as t2driver,
        (SELECT json_build_object(
            'plan_name', rp.plan_name,
            'expiry_date', ds.expiry_date,
@@ -150,7 +150,7 @@ export class DriverManagementRepository {
     const isUuid = uuidRegex.test(id);
 
     const result = await query(
-      `SELECT * FROM drivers WHERE ${isUuid ? 'id' : 'vdrive_id'} = $1 AND is_deleted = false`,
+      `SELECT *, t2d_id as t2driver FROM drivers WHERE ${isUuid ? 'id' : 't2d_id'} = $1 AND is_deleted = false`,
       [id]
     );
 
@@ -308,7 +308,7 @@ export class DriverManagementRepository {
   static async search(searchTerm: string, limit: number = 50, offset: number = 0) {
     const ilikeTerm = `%${searchTerm}%`;
     const result = await query(
-      `SELECT d.*, 
+      `SELECT d.*, d.t2d_id as t2driver,
        (SELECT json_build_object(
            'plan_name', rp.plan_name,
            'expiry_date', ds.expiry_date,
@@ -335,7 +335,7 @@ export class DriverManagementRepository {
          WHERE dd.driver_id = d.id
        ) as documents
        FROM drivers d
-       WHERE (d.first_name ILIKE $1 OR d.last_name ILIKE $1 OR d.phone_number ILIKE $1 OR d.email ILIKE $1 OR d.vdrive_id ILIKE $1 OR d.id::text ILIKE $1)
+       WHERE (d.first_name ILIKE $1 OR d.last_name ILIKE $1 OR d.phone_number ILIKE $1 OR d.email ILIKE $1 OR d.t2d_id ILIKE $1 OR d.id::text ILIKE $1)
        AND d.is_deleted = false 
        ORDER BY d.created_at DESC LIMIT $2 OFFSET $3`,
       [ilikeTerm, limit, offset]
@@ -343,7 +343,7 @@ export class DriverManagementRepository {
 
     const countResult = await query(
       `SELECT COUNT(*) FROM drivers 
-       WHERE (first_name ILIKE $1 OR last_name ILIKE $1 OR phone_number ILIKE $1 OR email ILIKE $1 OR vdrive_id ILIKE $1 OR id::text ILIKE $1)
+       WHERE (first_name ILIKE $1 OR last_name ILIKE $1 OR phone_number ILIKE $1 OR email ILIKE $1 OR t2d_id ILIKE $1 OR id::text ILIKE $1)
        AND is_deleted = false`,
       [ilikeTerm]
     );
@@ -376,7 +376,7 @@ export class DriverManagementRepository {
   static async updateStatus(id: string, status: string, reason?: string) {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     const isUuid = uuidRegex.test(id);
-    const idColumn = isUuid ? 'id' : 'vdrive_id';
+    const idColumn = isUuid ? 'id' : 't2d_id';
 
     const onboardingUpdate =
       status === 'active'
@@ -393,7 +393,7 @@ export class DriverManagementRepository {
     logger.info(`verifyDriver called for ID: ${id}, kycStatus: ${kycStatus}`);
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     const isUuid = uuidRegex.test(id);
-    const idColumn = isUuid ? 'id' : 'vdrive_id';
+    const idColumn = isUuid ? 'id' : 't2d_id';
 
     const kycData = JSON.stringify({
       overallStatus: kycStatus,
@@ -409,7 +409,7 @@ export class DriverManagementRepository {
       // We need the internal UUID for the documents update if we don't have it
       let internalId = id;
       if (!isUuid) {
-        const driver = await query('SELECT id FROM drivers WHERE vdrive_id = $1', [id]);
+        const driver = await query('SELECT id FROM drivers WHERE t2d_id = $1', [id]);
         if (driver.rows.length > 0) internalId = driver.rows[0].id;
       }
 
@@ -541,9 +541,9 @@ export class DriverManagementRepository {
         }
       }
 
-      // 3. Generate a unique vdrive_id
+      // 3. Generate a unique t2driver
       const vdriveIdResult = await client.query(
-        "SELECT 'VD-' || LPAD(CAST(COALESCE(MAX(CAST(SUBSTRING(vdrive_id FROM 4) AS INTEGER)), 0) + 1 AS TEXT), 7, '0') as next_id FROM drivers WHERE vdrive_id LIKE 'VD-%'"
+        "SELECT 'VD-' || LPAD(CAST(COALESCE(MAX(CAST(SUBSTRING(t2d_id FROM 4) AS INTEGER)), 0) + 1 AS TEXT), 7, '0') as next_id FROM drivers WHERE t2d_id LIKE 'VD-%'"
       );
       const vdriveId = vdriveIdResult.rows[0]?.next_id || 'VD-0000001';
 
@@ -558,7 +558,7 @@ export class DriverManagementRepository {
         `INSERT INTO drivers (
           first_name, last_name, full_name, phone_number, alternate_contact,
           email, date_of_birth, gender, language, address,
-          vdrive_id, status, onboarding_status, documents_submitted,
+          t2d_id, status, onboarding_status, documents_submitted,
           kyc, role, rating, total_trips, total_earnings,
           availability, is_deleted, created_at, updated_at
         ) VALUES (
@@ -668,9 +668,9 @@ export class DriverManagementRepository {
         }
       }
 
-      // 3. Generate a unique vdrive_id
+      // 3. Generate a unique t2driver
       const vdriveIdResult = await client.query(
-        "SELECT 'VD-' || LPAD(CAST(COALESCE(MAX(CAST(SUBSTRING(vdrive_id FROM 4) AS INTEGER)), 0) + 1 AS TEXT), 7, '0') as next_id FROM drivers WHERE vdrive_id LIKE 'VD-%'"
+        "SELECT 'VD-' || LPAD(CAST(COALESCE(MAX(CAST(SUBSTRING(t2d_id FROM 4) AS INTEGER)), 0) + 1 AS TEXT), 7, '0') as next_id FROM drivers WHERE t2d_id LIKE 'VD-%'"
       );
       const vdriveId = vdriveIdResult.rows[0]?.next_id || 'VD-0000001';
 
@@ -685,7 +685,7 @@ export class DriverManagementRepository {
         `INSERT INTO drivers (
           first_name, last_name, full_name, phone_number, alternate_contact,
           email, date_of_birth, gender, language, address,
-          vdrive_id, status, onboarding_status, documents_submitted,
+          t2d_id, status, onboarding_status, documents_submitted,
           kyc, role, rating, total_trips, total_earnings,
           availability, is_deleted, created_at, updated_at
         ) VALUES (
@@ -752,6 +752,24 @@ export class DriverManagementRepository {
       "SELECT COUNT(*) FROM drivers WHERE is_deleted = false AND status = 'active'"
     );
 
+    const getRevenueQuery = (dateFilter: string, dsDateFilter: string) => `
+      SELECT 
+        COALESCE((SELECT SUM(amount) FROM driver_recharges WHERE LOWER(status) IN ('success', 'completed', 'paid') ${dateFilter}), 0) +
+        COALESCE((SELECT SUM(amount) FROM subscription_payments WHERE LOWER(payment_status) IN ('success', 'completed', 'paid') ${dateFilter}), 0) +
+        COALESCE((SELECT SUM(
+            CASE 
+              WHEN ds.billing_cycle IN ('DAILY', 'day') THEN rp.daily_price
+              WHEN ds.billing_cycle IN ('WEEKLY', 'week') THEN rp.weekly_price
+              WHEN ds.billing_cycle IN ('MONTHLY', 'month') THEN rp.monthly_price
+              ELSE 0
+            END
+          )
+          FROM driver_subscriptions ds
+          JOIN recharge_plans rp ON ds.plan_id = rp.id
+          WHERE ds.status = 'active' ${dsDateFilter}), 0)
+      AS revenue
+    `;
+
     // Today's boundaries
     const today = 'CURRENT_DATE';
 
@@ -764,10 +782,16 @@ export class DriverManagementRepository {
       `SELECT COUNT(*) FROM driver_subscriptions WHERE created_at >= ${today} AND status = 'active'`
     );
     const todayTripsResult = await query(
-      `SELECT COUNT(*) as total, 
-              SUM(total_fare) FILTER (WHERE trip_status = 'COMPLETED') as revenue 
-       FROM trips WHERE created_at >= ${today}`
+      `SELECT COUNT(*) as total
+       FROM trips WHERE created_at >= ${today} AND trip_status = 'COMPLETED'`
     );
+    const todayBookingsResult = await query(
+      `SELECT COUNT(*) as total FROM trips WHERE created_at >= ${today}`
+    );
+    const todayRequestedResult = await query(
+      `SELECT COUNT(*) as total FROM trips WHERE created_at >= ${today} AND trip_status = 'REQUESTED'`
+    );
+    const todayRevenueResult = await query(getRevenueQuery(`AND created_at >= ${today}`, `AND ds.created_at >= ${today}`));
 
     // Total counts (Lifetime)
     const totalUsersResult = await query('SELECT COUNT(*) FROM users');
@@ -775,9 +799,10 @@ export class DriverManagementRepository {
     const totalSubscriptionsResult = await query(
       "SELECT COUNT(*) FROM driver_subscriptions WHERE status = 'active'"
     );
-    const totalEarningsResult = await query(
-      "SELECT SUM(total_fare) as total FROM trips WHERE trip_status = 'COMPLETED'"
-    );
+    const totalEarningsResult = await query(getRevenueQuery('', ''));
+    const totalTripsResult = await query("SELECT COUNT(*) FROM trips WHERE trip_status = 'COMPLETED'");
+    const totalBookingsResult = await query("SELECT COUNT(*) FROM trips");
+    const totalRequestedResult = await query("SELECT COUNT(*) FROM trips WHERE trip_status = 'REQUESTED'");
 
     // Yesterday's metrics for trends
     const yesterday = "CURRENT_DATE - INTERVAL '1 day'";
@@ -791,10 +816,16 @@ export class DriverManagementRepository {
       `SELECT COUNT(*) FROM driver_subscriptions WHERE created_at >= ${yesterday} AND created_at < ${today} AND status = 'active'`
     );
     const yesterdayTripsResult = await query(
-      `SELECT COUNT(*) as total, 
-              SUM(total_fare) FILTER (WHERE trip_status = 'COMPLETED') as revenue 
-       FROM trips WHERE created_at >= ${yesterday} AND created_at < ${today}`
+      `SELECT COUNT(*) as total 
+       FROM trips WHERE created_at >= ${yesterday} AND created_at < ${today} AND trip_status = 'COMPLETED'`
     );
+    const yesterdayBookingsResult = await query(
+      `SELECT COUNT(*) as total FROM trips WHERE created_at >= ${yesterday} AND created_at < ${today}`
+    );
+    const yesterdayRequestedResult = await query(
+      `SELECT COUNT(*) as total FROM trips WHERE created_at >= ${yesterday} AND created_at < ${today} AND trip_status = 'REQUESTED'`
+    );
+    const yesterdayRevenueResult = await query(getRevenueQuery(`AND created_at >= ${yesterday} AND created_at < ${today}`, `AND ds.created_at >= ${yesterday} AND ds.created_at < ${today}`));
 
     // Dynamic counts: Available (Online & no active trip) vs On Trip (Active trip)
     const onlineResult = await query(
@@ -808,6 +839,9 @@ export class DriverManagementRepository {
     // Scheduled Rides
     const totalScheduledResult = await query(
       "SELECT COUNT(*) FROM trips WHERE booking_type = 'SCHEDULED' AND trip_status NOT IN ('CANCELLED', 'COMPLETED', 'MID_CANCELLED')"
+    );
+    const todayScheduledResult = await query(
+      `SELECT COUNT(*) FROM trips WHERE booking_type = 'SCHEDULED' AND trip_status NOT IN ('CANCELLED', 'COMPLETED', 'MID_CANCELLED') AND created_at >= ${today}`
     );
     const acceptedScheduledResult = await query(
       "SELECT COUNT(*) FROM trips WHERE booking_type = 'SCHEDULED' AND trip_status = 'ACCEPTED'"
@@ -871,13 +905,17 @@ export class DriverManagementRepository {
       todayNewDrivers: parseInt(todayDriversResult.rows[0]?.count || '0'),
       todaySubscriptions: parseInt(todaySubscriptionsResult.rows[0]?.count || '0'),
       todayTrips: parseInt(todayTripsResult.rows[0]?.total || '0'),
-      todayRevenue: parseFloat(todayTripsResult.rows[0]?.revenue || '0'),
+      todayRevenue: parseFloat(todayRevenueResult.rows[0]?.revenue || '0'),
+      todayBookings: parseInt(todayBookingsResult.rows[0]?.total || '0'),
+      todayRequestedRides: parseInt(todayRequestedResult.rows[0]?.total || '0'),
 
       yesterdayUsers: parseInt(yesterdayUsersResult.rows[0]?.count || '0'),
       yesterdayDrivers: parseInt(yesterdayDriversResult.rows[0]?.count || '0'),
       yesterdaySubscriptions: parseInt(yesterdaySubscriptionsResult.rows[0]?.count || '0'),
       yesterdayTrips: parseInt(yesterdayTripsResult.rows[0]?.total || '0'),
-      yesterdayRevenue: parseFloat(yesterdayTripsResult.rows[0]?.revenue || '0'),
+      yesterdayRevenue: parseFloat(yesterdayRevenueResult.rows[0]?.revenue || '0'),
+      yesterdayBookings: parseInt(yesterdayBookingsResult.rows[0]?.total || '0'),
+      yesterdayRequestedRides: parseInt(yesterdayRequestedResult.rows[0]?.total || '0'),
     };
 
     return {
@@ -885,7 +923,11 @@ export class DriverManagementRepository {
       activeDrivers: parseInt(activeResult.rows[0]?.count || '0'),
       availableDrivers: Math.max(0, onlineCount - activeTripsCount),
       onTripDrivers: activeTripsCount,
+      totalTrips: parseInt(totalTripsResult.rows[0]?.count || '0'),
+      totalBookings: parseInt(totalBookingsResult.rows[0]?.count || '0'),
+      totalRequestedRides: parseInt(totalRequestedResult.rows[0]?.count || '0'),
       totalScheduledRides: parseInt(totalScheduledResult.rows[0]?.count || '0'),
+      todayScheduledRides: parseInt(todayScheduledResult.rows[0]?.count || '0'),
       acceptedScheduledRides: parseInt(acceptedScheduledResult.rows[0]?.count || '0'),
       todayNewUsers: stats.todayNewUsers,
       todayNewDrivers: stats.todayNewDrivers,
@@ -893,7 +935,7 @@ export class DriverManagementRepository {
       totalUsers: parseInt(totalUsersResult.rows[0]?.count || '0'),
       activeUsers: parseInt(activeUsersResult.rows[0]?.count || '0'),
       totalSubscriptions: parseInt(totalSubscriptionsResult.rows[0]?.count || '0'),
-      totalEarnings: parseFloat(totalEarningsResult.rows[0]?.total || '0'),
+      totalEarnings: parseFloat(totalEarningsResult.rows[0]?.revenue || '0'),
       todayTrips: stats.todayTrips,
       todayRevenue: stats.todayRevenue,
       pendingVerifications: parseInt(pendingVerificationsResult.rows[0]?.count || '0'),
@@ -909,7 +951,43 @@ export class DriverManagementRepository {
         subscriptions: calculateTrend(stats.todaySubscriptions, stats.yesterdaySubscriptions),
         trips: calculateTrend(stats.todayTrips, stats.yesterdayTrips),
         revenue: calculateTrend(stats.todayRevenue, stats.yesterdayRevenue),
+        bookings: calculateTrend(stats.todayBookings, stats.yesterdayBookings),
+        requestedRides: calculateTrend(stats.todayRequestedRides, stats.yesterdayRequestedRides),
       },
     };
+  }
+
+  static async getRidesOverview(startDate?: string, endDate?: string) {
+    let dateFilter = `WHERE trip_status = 'COMPLETED'`;
+    const params: any[] = [];
+    if (startDate && endDate) {
+      dateFilter = `WHERE created_at >= $1::date AND created_at < ($2::date + interval '1 day') AND trip_status = 'COMPLETED'`;
+      params.push(startDate, endDate);
+    }
+    
+    const result = await query(
+      `SELECT to_char(created_at, 'Dy') as name, COUNT(*) as rides 
+       FROM trips 
+       ${dateFilter} 
+       GROUP BY name`,
+      params
+    );
+
+    const dataMap: Record<string, number> = {};
+    for (const row of result.rows) {
+      dataMap[row.name] = parseInt(row.rides || '0');
+    }
+
+    const chartData = [
+      { name: 'Mon', rides: dataMap['Mon'] || 0 },
+      { name: 'Tue', rides: dataMap['Tue'] || 0 },
+      { name: 'Wed', rides: dataMap['Wed'] || 0 },
+      { name: 'Thu', rides: dataMap['Thu'] || 0 },
+      { name: 'Fri', rides: dataMap['Fri'] || 0 },
+      { name: 'Sat', rides: dataMap['Sat'] || 0 },
+      { name: 'Sun', rides: dataMap['Sun'] || 0 },
+    ];
+
+    return { chartData };
   }
 }
