@@ -29,6 +29,7 @@ import notificationRoutes from '../modules/notification-management/notification.
 import rolesRoutes from '../modules/roles/roles.routes';
 import supportManagementRoutes from '../modules/support-management/supportManagement.routes';
 import { enquiryPublicRoutes, enquiryAdminRoutes } from '../modules/enquiry-management/enquiryManagement.routes';
+import kycRoutes from '../modules/kyc/kyc.routes';
 
 const router = Router();
 
@@ -76,6 +77,7 @@ router.use('/notification-management', notificationRoutes);
 router.use('/roles', rolesRoutes);
 router.use('/support-management', supportManagementRoutes);
 router.use('/enquiries', enquiryAdminRoutes);
+router.use('/kyc/video', kycRoutes);
 
 router.get('/internal/trip-alert', (req, res) => {
   const { trip, secret } = req.body;
