@@ -560,13 +560,13 @@ export class DriverManagementRepository {
           email, date_of_birth, gender, language, address,
           t2d_id, status, onboarding_status, documents_submitted,
           kyc, role, rating, total_trips, total_earnings,
-          availability, is_deleted, created_at, updated_at
+          availability, is_deleted, created_at, updated_at, signup_source
         ) VALUES (
           $1, $2, $3, $4, $5,
           $6, $7, $8, $9, $10,
           $11, 'active', 'ONBOARDING_COMPLETED', true,
           $12, 'driver', 0, 0, 0,
-          '{"online": false, "last_active": null}'::jsonb, false, NOW(), NOW()
+          '{"online": false, "last_active": null}'::jsonb, false, NOW(), NOW(), 'offline'
         ) RETURNING id`,
         [
           data.first_name,
@@ -687,13 +687,13 @@ export class DriverManagementRepository {
           email, date_of_birth, gender, language, address,
           t2d_id, status, onboarding_status, documents_submitted,
           kyc, role, rating, total_trips, total_earnings,
-          availability, is_deleted, created_at, updated_at
+          availability, is_deleted, created_at, updated_at, signup_source
         ) VALUES (
           $1, $2, $3, $4, $5,
           $6, $7, $8, $9, $10,
           $11, 'pending_verification', 'DOCS_SUBMITTED', true,
           $12, 'driver', 0, 0, 0,
-          '{"online": false, "last_active": null}'::jsonb, false, NOW(), NOW()
+          '{"online": false, "last_active": null}'::jsonb, false, NOW(), NOW(), 'web'
         ) RETURNING id`,
         [
           data.first_name,

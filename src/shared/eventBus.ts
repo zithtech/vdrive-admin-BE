@@ -155,6 +155,15 @@ const dispatchToAdmin = (io: Server, event: string, data: any): void => {
     case 'VIDEO_KYC_DRIVER_LEFT':
       io.to('admin').emit('ADMIN_VIDEO_KYC_DRIVER_LEFT', data);
       break;
+    case 'KYC_RETRY_REQUEST':
+      io.to('admin').emit('ADMIN_KYC_RETRY_REQUEST', data);
+      break;
+    case 'KYC_TIMEOUT_TO_SCHEDULE':
+      io.to('admin').emit('ADMIN_KYC_TIMEOUT_TO_SCHEDULE', data);
+      break;
+    case 'KYC_APPOINTMENT_SCHEDULED':
+      io.to('admin').emit('ADMIN_KYC_APPOINTMENT_SCHEDULED', data);
+      break;
     default:
       logger.warn(`[bus] Unhandled event from user backend: '${event}'`);
   }
