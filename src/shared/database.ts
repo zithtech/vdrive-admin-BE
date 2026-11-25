@@ -15,10 +15,17 @@ export const connectDatabase = async () => {
         database: process.env.DB_NAME || 'mydb',
         max: 10,
         idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 10000,
+        keepAlive: true,
+        keepAliveInitialDelayMillis: 10000,
         ssl: process.env.PGSSLMODE === 'require' ? { rejectUnauthorized: false } : false,
         ...(process.env.PGCHANNELBINDING === 'require' && {
           application_name: 'myapp',
         }),
+      });
+
+      pool.on('error', (err: any) => {
+        logger.warn(`⚠️ [PostgreSQL Pool] Idle client error (handled): ${err?.message || err}`);
       });
     }
 

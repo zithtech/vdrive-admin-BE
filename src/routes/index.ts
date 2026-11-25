@@ -30,6 +30,7 @@ import rolesRoutes from '../modules/roles/roles.routes';
 import supportManagementRoutes from '../modules/support-management/supportManagement.routes';
 import { enquiryPublicRoutes, enquiryAdminRoutes } from '../modules/enquiry-management/enquiryManagement.routes';
 import kycRoutes from '../modules/kyc/kyc.routes';
+import drivingTestRoutes from '../modules/driving-test/driving-test.routes';
 
 const router = Router();
 
@@ -78,6 +79,8 @@ router.use('/roles', rolesRoutes);
 router.use('/support-management', supportManagementRoutes);
 router.use('/enquiries', enquiryAdminRoutes);
 router.use('/kyc/video', kycRoutes);
+router.use('/admin/driving-tests', drivingTestRoutes);
+router.use('/driving-tests', drivingTestRoutes);
 
 router.get('/internal/trip-alert', (req, res) => {
   const { trip, secret } = req.body;
